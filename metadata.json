@@ -1,0 +1,7 @@
+{
+  "name": "CaseCarry",
+  "description": "Citizen-controlled case continuity tool that turns scattered reports, complaints, responses, and evidence into a clear, verified, portable case record to carry forward when issues remain unresolved.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
