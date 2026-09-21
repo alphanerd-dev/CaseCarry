@@ -1,7 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, HelpCircle, CheckCircle2, MessageSquare, Target } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  HelpCircle,
+  CheckCircle2,
+  MessageSquare,
+  Target,
+  FileSpreadsheet,
+  Layers,
+  Sparkles,
+  AlertCircle
+} from 'lucide-react';
 import { UnresolvedIssue } from '@/types/case';
 
 interface UnresolvedIssueViewProps {
@@ -9,6 +20,7 @@ interface UnresolvedIssueViewProps {
   onUpdateUnresolved: (updated: UnresolvedIssue) => void;
   onContinue: () => void;
   onBack: () => void;
+  isDemoMode?: boolean;
 }
 
 export function UnresolvedIssueView({
@@ -16,17 +28,38 @@ export function UnresolvedIssueView({
   onUpdateUnresolved,
   onContinue,
   onBack,
+  isDemoMode,
 }: UnresolvedIssueViewProps) {
-  const [formData, setFormData] = useState<UnresolvedIssue>(unresolved);
+  const [formData, setFormData] = useState<UnresolvedIssue>({
+    problem: unresolved.problem || '',
+    originalIssue: unresolved.originalIssue || '',
+    whatWasRequested: unresolved.whatWasRequested || '',
+    whatHappened: unresolved.whatHappened || '',
+    responseReceived: unresolved.responseReceived || '',
+    whatWasResolved: unresolved.whatWasResolved || '',
+    whatWasNotResolved: unresolved.whatWasNotResolved || '',
+    requestedAction: unresolved.requestedAction || '',
+    resolutionVision: unresolved.resolutionVision || '',
+    alreadyTried: unresolved.alreadyTried || '',
+  });
 
   const handleChange = (field: keyof UnresolvedIssue, value: string) => {
     const updated = { ...formData, [field]: value };
+    // If user types into whatWasNotResolved and problem is empty, sync them
+    if (field === 'whatWasNotResolved' && !formData.problem) {
+      updated.problem = value;
+    }
+    if (field === 'problem' && !formData.whatWasNotResolved) {
+      updated.whatWasNotResolved = value;
+    }
     setFormData(updated);
     onUpdateUnresolved(updated);
   };
 
+  const hasCoreProblem = Boolean((formData.problem || '').trim()) || Boolean((formData.whatWasNotResolved || '').trim());
+
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Back button */}
       <button
         onClick={onBack}
@@ -38,7 +71,7 @@ export function UnresolvedIssueView({
 
       {/* Progress pill */}
       <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#2457C5] text-xs font-semibold border border-blue-100">
-        <span>Step 5 of 6</span>
+        <span>Step 5 of 8</span>
         <span>•</span>
         <span>Unresolved Issue Definition</span>
       </div>
@@ -48,121 +81,158 @@ export function UnresolvedIssueView({
         What remains unresolved?
       </h1>
       <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
-        This is the part another person or caseworker needs to understand first. Tell it in your own words — no legal jargon required.
+        This is the part an advocate, regulator, or receiving official needs to understand immediately. Explain in your own words — no legal jargon required.
       </p>
 
-      {/* Form Fields */}
+      {/* Distinction Callout: Original Dispute vs Current Problem */}
+      <div className="mt-6 p-4 rounded-xl border border-blue-200 bg-blue-50/50 space-y-2 text-xs">
+        <div className="font-bold text-[#2457C5] flex items-center gap-1.5">
+          <Target size={15} />
+          <span>Case Continuity Distinction: Original Dispute vs. Current Problem</span>
+        </div>
+        <p className="text-[#172033] leading-relaxed">
+          CaseCarry makes a crucial distinction:
+          <br />
+          <strong className="text-[#526071]">Original issue:</strong> What went wrong in the first place (e.g., incorrect billing or lack of service).
+          <br />
+          <strong className="text-[#2457C5]">Current unresolved issue:</strong> What occurred <em>after</em> you complained (e.g., the company claimed in writing to have resolved the bill, but the next bill still demanded the money and threatened disconnection).
+        </p>
+      </div>
+
+      {/* Structured Resolution Framework */}
       <div className="mt-8 space-y-6">
-        {/* Core Field: The problem that still needs to be resolved */}
-        <div className="bg-white border border-[#2457C5]/50 ring-1 ring-[#2457C5]/30 rounded-xl p-5 shadow-xs space-y-2">
+        {/* Field 1: Original Issue */}
+        <div className="bg-white border border-[#D9DEE7] rounded-xl p-5 shadow-xs space-y-2">
+          <label className="text-sm font-bold text-[#172033] block">
+            1. What was the original issue?
+          </label>
+          <p className="text-xs text-[#526071]">
+            What problem did you initially report to the organization?
+          </p>
+          <textarea
+            rows={2}
+            value={formData.originalIssue}
+            onChange={(e) => handleChange('originalIssue', e.target.value)}
+            placeholder="e.g. IBEDC charged an arbitrary estimated bill of ₦64,438.50 for July despite a functional meter being installed."
+            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
+          />
+        </div>
+
+        {/* Field 2: What Action Was Requested & Tried */}
+        <div className="bg-white border border-[#D9DEE7] rounded-xl p-5 shadow-xs space-y-2">
+          <label className="text-sm font-bold text-[#172033] block">
+            2. What action was requested and what did you try?
+          </label>
+          <p className="text-xs text-[#526071]">
+            Did you submit emails, pay bills, make phone calls, or visit an office?
+          </p>
+          <textarea
+            rows={2}
+            value={formData.alreadyTried}
+            onChange={(e) => handleChange('alreadyTried', e.target.value)}
+            placeholder="e.g. Paid July bill in full via USSD to prevent disconnection; submitted formal dispute email on 14 Aug (CCU-12345); followed up via WhatsApp."
+            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
+          />
+        </div>
+
+        {/* Field 3: What Response Was Received */}
+        <div className="bg-white border border-[#D9DEE7] rounded-xl p-5 shadow-xs space-y-2">
+          <label className="text-sm font-bold text-[#172033] block">
+            3. What response was received?
+          </label>
+          <p className="text-xs text-[#526071]">
+            What letters, reference numbers, promises, or conflicting statements were given?
+          </p>
+          <textarea
+            rows={2}
+            value={formData.responseReceived}
+            onChange={(e) => handleChange('responseReceived', e.target.value)}
+            placeholder="e.g. IBEDC issued a closure letter on 03 Sept claiming adjustments were effected, but on 07 Sept WhatsApp support stated the ticket remains under review."
+            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
+          />
+        </div>
+
+        {/* Field 4 & 5: What Was Resolved vs What Was NOT Resolved (Side by Side) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Resolved */}
+          <div className="bg-white border border-emerald-200 rounded-xl p-4 shadow-xs space-y-2">
+            <label className="text-xs sm:text-sm font-bold text-[#18794E] flex items-center gap-1.5">
+              <CheckCircle2 size={15} />
+              <span>4. What was resolved (if anything)?</span>
+            </label>
+            <p className="text-[11px] text-[#526071]">
+              Any partial progress or acknowledgement made.
+            </p>
+            <textarea
+              rows={3}
+              value={formData.whatWasResolved}
+              onChange={(e) => handleChange('whatWasResolved', e.target.value)}
+              placeholder="e.g. Complaint was acknowledged and Reference CCU-12345 was assigned."
+              className="w-full p-2.5 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#18794E] focus:outline-hidden"
+            />
+          </div>
+
+          {/* NOT Resolved */}
+          <div className="bg-white border border-rose-300 ring-1 ring-rose-200 rounded-xl p-4 shadow-xs space-y-2">
+            <label className="text-xs sm:text-sm font-bold text-rose-700 flex items-center gap-1.5">
+              <AlertCircle size={15} />
+              <span>5. What was NOT resolved? <span className="text-rose-500">*</span></span>
+            </label>
+            <p className="text-[11px] text-[#526071]">
+              The core failure or broken state today.
+            </p>
+            <textarea
+              rows={3}
+              required
+              value={formData.problem}
+              onChange={(e) => handleChange('problem', e.target.value)}
+              placeholder="e.g. The ₦64,438.50 payment was never credited; excessive estimated billing continues; disconnection threat is active."
+              className="w-full p-2.5 border border-rose-300 rounded-lg text-xs sm:text-sm text-[#172033] focus:border-rose-500 focus:outline-hidden"
+            />
+          </div>
+        </div>
+
+        {/* Field 6: Requested Action from Recipient */}
+        <div className="bg-white border border-[#2457C5]/40 rounded-xl p-5 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-sm font-bold text-[#172033] flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#2457C5]" />
-              The problem that still needs to be resolved <span className="text-rose-500">*</span>
+              6. What action do you want from the next recipient?
             </label>
-            <span className="text-xs text-[#2457C5] font-semibold">Primary Focus</span>
+            <span className="text-xs text-[#2457C5] font-semibold">Outcome Goal</span>
           </div>
           <p className="text-xs text-[#526071]">
-            Explain what is broken, incorrect, or unpaid today.
-          </p>
-          <textarea
-            rows={4}
-            required
-            value={formData.problem}
-            onChange={(e) => handleChange('problem', e.target.value)}
-            placeholder="e.g. IBEDC charged arbitrary estimated bills despite having a working meter. The ₦64,438.50 payment made in August was not credited..."
-            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-sm text-[#172033] focus:border-[#2457C5] focus:ring-1 focus:ring-[#2457C5] focus:outline-hidden"
-          />
-        </div>
-
-        {/* Optional field 1: What have you already tried? */}
-        <div className="bg-white border border-[#D9DEE7] rounded-xl p-5 shadow-xs space-y-2">
-          <label className="text-xs sm:text-sm font-bold text-[#172033] block">
-            What have you already tried? <span className="text-slate-400 font-normal">(Optional)</span>
-          </label>
-          <p className="text-xs text-[#526071]">
-            Prior letters, payments, visits, or reference numbers.
-          </p>
-          <textarea
-            rows={3}
-            value={formData.alreadyTried}
-            onChange={(e) => handleChange('alreadyTried', e.target.value)}
-            placeholder="e.g. Paid July bill via USSD, sent dispute email on 14 August (CCU-12345), and followed up on WhatsApp..."
-            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
-          />
-        </div>
-
-        {/* Optional field 2: What response did you receive? */}
-        <div className="bg-white border border-[#D9DEE7] rounded-xl p-5 shadow-xs space-y-2">
-          <label className="text-xs sm:text-sm font-bold text-[#172033] block">
-            What response did you receive? <span className="text-slate-400 font-normal">(Optional)</span>
-          </label>
-          <p className="text-xs text-[#526071]">
-            What did the organization say or do?
-          </p>
-          <textarea
-            rows={3}
-            value={formData.responseReceived}
-            onChange={(e) => handleChange('responseReceived', e.target.value)}
-            placeholder="e.g. IBEDC claimed in a letter dated Sept 3 that the case was resolved and adjusted, but on WhatsApp they said it's still under review..."
-            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
-          />
-        </div>
-
-        {/* Optional field 3: What would resolution look like? */}
-        <div className="bg-white border border-[#D9DEE7] rounded-xl p-5 shadow-xs space-y-2">
-          <label className="text-xs sm:text-sm font-bold text-[#172033] block">
-            What would resolution look like? <span className="text-slate-400 font-normal">(Optional)</span>
-          </label>
-          <p className="text-xs text-[#526071]">
-            What outcome would fairly resolve this dispute?
-          </p>
-          <textarea
-            rows={3}
-            value={formData.resolutionVision}
-            onChange={(e) => handleChange('resolutionVision', e.target.value)}
-            placeholder="e.g. 1. Credit the ₦64,438.50 payment. 2. Cancel excessive estimated charges. 3. Physically inspect the meter..."
-            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
-          />
-        </div>
-
-        {/* Optional field 4: What action are you asking for now? */}
-        <div className="bg-white border border-[#D9DEE7] rounded-xl p-5 shadow-xs space-y-2">
-          <label className="text-xs sm:text-sm font-bold text-[#172033] block">
-            What action are you asking for now? <span className="text-slate-400 font-normal">(Optional)</span>
-          </label>
-          <p className="text-xs text-[#526071]">
-            What do you want the next institution, advocate, or caseworker to do?
+            What specific action or intervention are you requesting when you present this record?
           </p>
           <textarea
             rows={3}
             value={formData.requestedAction}
             onChange={(e) => handleChange('requestedAction', e.target.value)}
-            placeholder="e.g. Intervene with IBEDC to enforce meter inspection and halt any disconnection notice..."
-            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
+            placeholder="e.g. 1. Reconcile and credit the payment. 2. Reverse estimated billing. 3. Physically inspect the meter. 4. Halt disconnection."
+            className="w-full p-3 border border-[#D9DEE7] rounded-lg text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
           />
         </div>
       </div>
 
-      {/* Bottom Action Bar */}
-      <div className="mt-8 pt-4 border-t border-[#D9DEE7] flex items-center justify-between gap-3">
+      {/* Navigation Footer */}
+      <div className="mt-10 pt-6 border-t border-[#D9DEE7] flex items-center justify-between">
         <button
           onClick={onBack}
-          className="px-4 py-2.5 rounded-xl border border-[#D9DEE7] text-sm font-semibold text-[#526071] hover:text-[#172033] bg-white hover:bg-slate-50 transition-colors"
+          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
         >
-          Back
+          Back to Verification
         </button>
 
         <button
           onClick={onContinue}
-          disabled={!formData.problem.trim()}
-          className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all ${
-            formData.problem.trim()
+          disabled={!hasCoreProblem}
+          className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            hasCoreProblem
               ? 'bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs'
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          <span>Pathway Guidance</span>
+          <span>Continue to Optional Pathway</span>
           <ArrowRight size={16} />
         </button>
       </div>

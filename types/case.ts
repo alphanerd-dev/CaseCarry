@@ -5,6 +5,17 @@ export type ProvenanceType =
   | 'needs-review'
   | 'conflict';
 
+export type CaseStatus =
+  | 'draft'
+  | 'evidence_collected'
+  | 'reconstruction_ready'
+  | 'verification_in_progress'
+  | 'verified'
+  | 'unresolved_defined'
+  | 'ready_to_bundle'
+  | 'exported'
+  | 'preserved_privately';
+
 export interface EvidenceFile {
   id: string;
   title: string;
@@ -20,31 +31,44 @@ export interface EvidenceFile {
   fullSnippet?: string;
   fileReference?: string;
   keyFields?: { label: string; value: string }[];
+  // Real file handling fields
+  dataUrl?: string;
+  rawText?: string;
+  mimeType?: string;
+  isOriginalRetained?: boolean;
 }
 
 export interface CaseEvent {
   id: string;
   date: string;
   displayDate: string;
+  datePrecision?: 'exact' | 'approximate' | 'unspecified';
   title: string;
   description: string;
   provenance: ProvenanceType;
   provenanceLabel: string;
   sourceIds: string[];
   sourceNames: string[];
+  sourceQuote?: string;
   verifiedByUser: boolean;
   disputed?: boolean;
   conflictDetails?: string;
+  needsReviewReason?: string;
   notes?: string;
   category?: 'billing' | 'complaint' | 'response' | 'payment' | 'communication' | 'status';
 }
 
 export interface UnresolvedIssue {
   problem: string;
-  alreadyTried: string;
-  responseReceived: string;
-  resolutionVision: string;
-  requestedAction: string;
+  originalIssue?: string;
+  whatWasRequested?: string;
+  whatHappened?: string;
+  responseReceived?: string;
+  whatWasResolved?: string;
+  whatWasNotResolved?: string;
+  requestedAction?: string;
+  resolutionVision?: string;
+  alreadyTried?: string;
 }
 
 export interface Pathway {
@@ -59,6 +83,8 @@ export interface Pathway {
   sourceUrl?: string;
   lastCheckedDate: string;
   warning: string;
+  whatWeDontKnow?: string;
+  statusNotes?: string;
 }
 
 export interface CaseRecord {
@@ -73,7 +99,12 @@ export interface CaseRecord {
   unresolved: UnresolvedIssue;
   selectedPathways: string[];
   pathways?: Pathway[];
+  contradictions?: string[];
+  missingInformation?: string[];
   createdAt: string;
   updatedAt: string;
+  dateOpened?: string;
   isCompleted?: boolean;
+  isDemo?: boolean;
+  status?: CaseStatus;
 }

@@ -11,7 +11,9 @@ import {
   Scale,
   FileCheck2,
   Calendar,
-  Check
+  Check,
+  SkipForward,
+  Info
 } from 'lucide-react';
 import { Pathway } from '@/types/case';
 
@@ -20,7 +22,9 @@ interface PathwayGuidanceViewProps {
   selectedPathways: string[];
   onTogglePathway: (id: string) => void;
   onContinue: () => void;
+  onSkip: () => void;
   onBack: () => void;
+  isDemoMode?: boolean;
 }
 
 export function PathwayGuidanceView({
@@ -28,7 +32,9 @@ export function PathwayGuidanceView({
   selectedPathways,
   onTogglePathway,
   onContinue,
+  onSkip,
   onBack,
+  isDemoMode,
 }: PathwayGuidanceViewProps) {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -43,28 +49,41 @@ export function PathwayGuidanceView({
 
       {/* Progress pill */}
       <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#2457C5] text-xs font-semibold border border-blue-100">
-        <span>Step 6 of 6 (Optional)</span>
+        <span>Step 6 of 8 (Optional)</span>
         <span>•</span>
-        <span>Pathway Guidance</span>
+        <span>Relevant Next Pathways</span>
       </div>
 
       {/* Heading */}
-      <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
-        Where could you continue?
-      </h1>
-      <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
-        CaseCarry can show potentially relevant pathways based on the information you’ve provided. Check the source and current requirements before relying on any pathway.
-      </p>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
+            Where could you carry this case?
+          </h1>
+          <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
+            Based on the current regulatory information available, these pathways may be relevant. CaseCarry is a case continuity tool, not an escalation router — selecting a pathway is optional.
+          </p>
+        </div>
 
-      {/* Important Disclaimer Card */}
+        {/* Skip button right at the top */}
+        <button
+          onClick={onSkip}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] hover:bg-slate-100 rounded-lg border border-[#D9DEE7] shrink-0 self-start"
+        >
+          <SkipForward size={14} />
+          <span>Skip pathway guidance</span>
+        </button>
+      </div>
+
+      {/* Important Non-Authoritative Guidance Card */}
       <div className="mt-6 p-4 bg-amber-50/70 border border-amber-200 rounded-xl flex items-start gap-3 text-xs text-[#A15C00] leading-relaxed">
         <AlertTriangle size={17} className="shrink-0 text-[#A15C00] mt-0.5" />
         <div>
-          <strong className="text-[#172033]">Non-authoritative Guidance:</strong> These pathways are informational possibilities based on Nigerian public utility and consumer protection regulations. CaseCarry never gives binding legal counsel and never submits complaints autonomously.
+          <strong className="text-[#172033]">Informational Attribution:</strong> Based on the current regulatory information available, these pathways may be relevant. CaseCarry does not provide binding legal counsel, make decisions for you, or automatically submit complaints. Always verify current operating procedures.
         </div>
       </div>
 
-      {/* Pathway Cards */}
+      {/* Pathway Cards List */}
       <div className="mt-8 space-y-5">
         {pathways.map((path) => {
           const isSelected = selectedPathways.includes(path.id);
@@ -85,17 +104,23 @@ export function PathwayGuidanceView({
                     <span>May be relevant</span>
                   </div>
                   <h3 className="text-base font-bold text-[#172033]">{path.name}</h3>
-                  <div className="text-xs text-[#526071] flex items-center gap-2 mt-0.5">
+                  <div className="text-xs text-[#526071] flex flex-wrap items-center gap-2 mt-0.5">
                     <span className="font-semibold text-[#172033]">{path.organization}</span>
                     <span>•</span>
                     <span>{path.jurisdiction}</span>
+                    {path.statusNotes && (
+                      <>
+                        <span>•</span>
+                        <span className="text-[#18794E] font-medium">{path.statusNotes}</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Selection toggle */}
                 <button
                   onClick={() => onTogglePathway(path.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors shrink-0 self-start ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors shrink-0 self-start ${
                     isSelected
                       ? 'bg-[#2457C5] text-white'
                       : 'bg-slate-100 text-[#526071] hover:bg-slate-200'
@@ -131,39 +156,70 @@ export function PathwayGuidanceView({
                 </div>
               </div>
 
-              {/* Regulatory Source & Warning */}
-              <div className="pt-3 border-t border-slate-100 text-[11px] text-[#526071] space-y-1">
-                <div className="flex items-center justify-between flex-wrap gap-1">
-                  <span>
-                    <strong>Official Source:</strong> {path.officialSource}
+              {/* What CaseCarry Does NOT Know (Section 18) */}
+              {path.whatWeDontKnow && (
+                <div className="p-3 bg-amber-50/50 border border-amber-200 rounded-lg text-xs text-[#A15C00] space-y-0.5">
+                  <span className="font-bold text-amber-900 block flex items-center gap-1">
+                    <Info size={12} /> What CaseCarry does NOT know:
                   </span>
-                  <span className="flex items-center gap-1 text-slate-400">
-                    <Calendar size={11} /> Checked: {path.lastCheckedDate}
-                  </span>
+                  <p className="text-amber-950 leading-relaxed">{path.whatWeDontKnow}</p>
                 </div>
-                <p className="italic text-slate-500">{path.warning}</p>
+              )}
+
+              {/* Source & Attribution Link */}
+              <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-[#526071]">
+                <div className="flex items-center gap-1.5 truncate max-w-sm">
+                  <span className="font-semibold text-[#172033]">Authority:</span>
+                  <span className="truncate">{path.officialSource}</span>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-[11px] text-slate-400">
+                    Checked: {path.lastCheckedDate}
+                  </span>
+                  {path.sourceUrl && (
+                    <a
+                      href={path.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#2457C5] hover:underline"
+                    >
+                      <span>Official Source</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Bottom Action Bar */}
-      <div className="mt-8 pt-4 border-t border-[#D9DEE7] flex items-center justify-between gap-3">
+      {/* Navigation and Skip Footer */}
+      <div className="mt-10 pt-6 border-t border-[#D9DEE7] flex flex-col sm:flex-row items-center justify-between gap-3">
         <button
           onClick={onBack}
-          className="px-4 py-2.5 rounded-xl border border-[#D9DEE7] text-sm font-semibold text-[#526071] hover:text-[#172033] bg-white hover:bg-slate-50 transition-colors"
+          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
         >
-          Back
+          Back to Unresolved Issue
         </button>
 
-        <button
-          onClick={onContinue}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs transition-colors"
-        >
-          <span>Review Privacy & Sharing</span>
-          <ArrowRight size={16} />
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <button
+            onClick={onSkip}
+            className="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-medium text-[#526071] hover:text-[#172033]"
+          >
+            Skip this step
+          </button>
+
+          <button
+            onClick={onContinue}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-sm font-semibold rounded-xl shadow-xs transition-all"
+          >
+            <span>Continue to Privacy Review</span>
+            <ArrowRight size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -14,7 +14,9 @@ import {
   ExternalLink,
   Share2,
   RotateCcw,
-  Eye
+  Eye,
+  Bookmark,
+  Sparkles
 } from 'lucide-react';
 import { CaseRecord } from '@/types/case';
 
@@ -23,6 +25,7 @@ interface ExportViewProps {
   onBackToBundle: () => void;
   onStartAnotherCase: () => void;
   onViewCase: () => void;
+  onPreservePrivately?: () => void;
 }
 
 export function ExportView({
@@ -30,8 +33,10 @@ export function ExportView({
   onBackToBundle,
   onStartAnotherCase,
   onViewCase,
+  onPreservePrivately,
 }: ExportViewProps) {
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+  const [preservedNotice, setPreservedNotice] = useState(false);
 
   // Generate plain text / JSON record for instant download
   const handleDownloadJSON = () => {
@@ -46,6 +51,16 @@ export function ExportView({
   };
 
   const handleDownloadSummaryDoc = () => {
+    const contradictionSection =
+      caseData.contradictions && caseData.contradictions.length > 0
+        ? caseData.contradictions.map((c, i) => `• ${c}`).join('\n')
+        : '• No institutional contradictions detected.';
+
+    const missingInfoSection =
+      caseData.missingInformation && caseData.missingInformation.length > 0
+        ? caseData.missingInformation.map((m, i) => `• ${m}`).join('\n')
+        : '• No missing records noted.';
+
     const textContent = `================================================================================
 CASECARRY CARRY-FORWARD CASE BUNDLE
 Citizen-Controlled Case Continuity Record
@@ -53,64 +68,78 @@ Citizen-Controlled Case Continuity Record
 
 CASE TITLE: ${caseData.title}
 RECORD ID: ${caseData.id}
-CITIZEN: ${caseData.citizenName}
-SERVICE PROVIDER: ${caseData.provider}
-ACCOUNT REFERENCE: ${caseData.accountReference || '0456789123'}
+CITIZEN: ${caseData.citizenName || 'Citizen'}
+SERVICE PROVIDER: ${caseData.provider || 'Service Provider'}
+ACCOUNT REFERENCE: ${caseData.accountReference || 'Not provided'}
 STATUS: Unresolved
-UPDATED: ${caseData.updatedAt}
+UPDATED: ${caseData.updatedAt || 'Recent'}
 
 --------------------------------------------------------------------------------
-1. WHAT REMAINS UNRESOLVED (THE CORE PROBLEM)
+1. ORIGINAL DISPUTE & CONTEXT
 --------------------------------------------------------------------------------
-${caseData.unresolved.problem}
+${caseData.unresolved.originalIssue || 'Original issue regarding service or billing delivery.'}
 
 --------------------------------------------------------------------------------
-2. WHAT HAS ALREADY BEEN TRIED
+2. WHAT REMAINS UNRESOLVED (THE CORE PROBLEM)
 --------------------------------------------------------------------------------
-${caseData.unresolved.alreadyTried}
+${caseData.unresolved.problem || caseData.unresolved.whatWasNotResolved || 'The reported issue remains unresolved.'}
 
 --------------------------------------------------------------------------------
-3. RESPONSES RECEIVED
+3. WHAT HAS ALREADY BEEN TRIED
 --------------------------------------------------------------------------------
-${caseData.unresolved.responseReceived}
+${caseData.unresolved.alreadyTried || 'Documented in attached chronology.'}
 
 --------------------------------------------------------------------------------
-4. REQUESTED ACTION FROM RECIPIENT
+4. RESPONSES RECEIVED
 --------------------------------------------------------------------------------
-${caseData.unresolved.requestedAction}
+${caseData.unresolved.responseReceived || 'No satisfactory resolution received.'}
+
+--------------------------------------------------------------------------------
+5. REQUESTED ACTION FROM RECIPIENT
+--------------------------------------------------------------------------------
+${caseData.unresolved.requestedAction || 'Resolution of disputed records and restitution of proper service.'}
 
 FAIR RESOLUTION VISION:
-${caseData.unresolved.resolutionVision}
+${caseData.unresolved.resolutionVision || 'Fair reconciliation and documented closure.'}
 
 --------------------------------------------------------------------------------
-5. VERIFIED CHRONOLOGY & PROVENANCE
+6. VERIFIED CHRONOLOGY & PROVENANCE
 --------------------------------------------------------------------------------
 ${caseData.events
   .map(
-    (ev, idx) =>
-      `[${ev.displayDate}] ${ev.title}\nProvenance: ${ev.provenanceLabel}\nDetails: ${ev.description}${
+    (ev) =>
+      `[${ev.displayDate}] ${ev.title}\nProvenance: ${ev.provenanceLabel || ev.provenance}\nDetails: ${ev.description}${
         ev.conflictDetails ? `\n⚠️ Contradiction: ${ev.conflictDetails}` : ''
       }\nSources: ${ev.sourceNames.join(', ') || 'Direct citizen testimony'}\n`
   )
   .join('\n')}
 
 --------------------------------------------------------------------------------
-6. EVIDENCE INDEX (ATTACHED ARTIFACTS)
+7. EVIDENCE INDEX (ATTACHED ARTIFACTS)
 --------------------------------------------------------------------------------
 ${caseData.evidence
   .filter((e) => e.privacyStatus !== 'private')
-  .map((e, idx) => `${idx + 1}. [${e.type.toUpperCase()}] ${e.title} (${e.filename}) - ${e.uploadDate}`)
+  .map(
+    (e, idx) =>
+      `${idx + 1}. [${e.type.toUpperCase()}] ${e.title} (${e.filename}) - ${e.size} - Privacy: ${
+        e.privacyStatus === 'redacted' ? 'Redacted' : 'Included'
+      }`
+  )
   .join('\n')}
 
 --------------------------------------------------------------------------------
-7. UNCERTAINTY & SOURCES CONFLICT
+8. SURFACED CONTRADICTIONS & UNCERTAINTIES
 --------------------------------------------------------------------------------
-- IBEDC formal letter (03 Sept) stated the dispute was resolved and adjustments effected.
-- IBEDC WhatsApp care (07 Sept) stated the complaint CCU-12345 was still under review.
-- Subsequent August bill shows previous payment was uncredited and estimated billing continued.
+CONTRADICTIONS:
+${contradictionSection}
+
+MISSING RECORDS / UNCERTAINTIES:
+${missingInfoSection}
 
 ================================================================================
-Generated with CaseCarry. No proprietary software needed to read this record.
+Generated with CaseCarry (https://casecarry.civic).
+No proprietary software needed to read this record.
+Citizen-controlled case continuity.
 ================================================================================
 `;
 
@@ -118,17 +147,25 @@ Generated with CaseCarry. No proprietary software needed to read this record.
     const url = URL.createObjectURL(blob);
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', url);
-    downloadAnchor.setAttribute('download', `CaseCarry_${caseData.citizenName.replace(/\s+/g, '_')}_Case_Bundle.txt`);
+    downloadAnchor.setAttribute('download', `CaseCarry_${(caseData.citizenName || 'Citizen').replace(/\s+/g, '_')}_Case_Bundle.txt`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
     URL.revokeObjectURL(url);
-    setDownloadSuccess('Portable Case Bundle file downloaded.');
+    setDownloadSuccess('Portable Case Bundle text file downloaded.');
   };
 
   const handlePrintPDF = () => {
     window.print();
-    setDownloadSuccess('Print / Save PDF dialog launched.');
+    setDownloadSuccess('Print / Save PDF dialog opened.');
+  };
+
+  const handlePreserve = () => {
+    if (onPreservePrivately) {
+      onPreservePrivately();
+    }
+    setPreservedNotice(true);
+    setDownloadSuccess('Case preserved privately in local storage. No external transfer occurred.');
   };
 
   return (
@@ -148,7 +185,7 @@ Generated with CaseCarry. No proprietary software needed to read this record.
           Your case bundle is ready
         </h1>
         <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
-          Export your verified bundle in a recipient-neutral format. Take it to an ombudsman, regulatory office, caseworker, or civic advocate.
+          Export your verified bundle in a recipient-neutral format. Take it to an ombudsman, regulatory commission, caseworker, legal clinic, or civic advocate.
         </p>
       </div>
 
@@ -199,7 +236,7 @@ Generated with CaseCarry. No proprietary software needed to read this record.
             </div>
             <div>
               <h3 className="text-base font-bold text-[#172033]">
-                Download Evidence Bundle (.txt & attachments)
+                Download Evidence Bundle (.txt)
               </h3>
               <p className="text-xs text-[#526071] mt-0.5">
                 Universal text bundle formatted for WhatsApp sharing, email attachments, or offline filing.
@@ -228,11 +265,37 @@ Generated with CaseCarry. No proprietary software needed to read this record.
                 </span>
               </div>
               <p className="text-xs text-[#526071] mt-0.5">
-                Machine-readable open case record with cryptographic evidence hashes and provenance metadata.
+                Machine-readable open case record with chronology and provenance metadata.
               </p>
             </div>
           </div>
           <Download size={18} className="text-slate-500 shrink-0" />
+        </div>
+
+        {/* Option 4: Preserve Privately for Now (Section 19) */}
+        <div
+          onClick={handlePreserve}
+          className="p-5 bg-white border border-[#D9DEE7] hover:border-slate-400 rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-between gap-4 group"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 text-[#A15C00] flex items-center justify-center group-hover:bg-[#A15C00] group-hover:text-white transition-colors shrink-0">
+              <Bookmark size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-[#172033]">
+                  Preserve Privately for Now
+                </h3>
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-[#A15C00]">
+                  Private
+                </span>
+              </div>
+              <p className="text-xs text-[#526071] mt-0.5">
+                Keep the organized case safely on this device in your browser. Do not export or share anything yet.
+              </p>
+            </div>
+          </div>
+          <Check size={18} className="text-[#A15C00] shrink-0" />
         </div>
       </div>
 
@@ -294,7 +357,7 @@ Generated with CaseCarry. No proprietary software needed to read this record.
             className="w-full sm:w-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#172033] rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors"
           >
             <Eye size={14} />
-            <span>View this case</span>
+            <span>View bundle preview</span>
           </button>
 
           <button

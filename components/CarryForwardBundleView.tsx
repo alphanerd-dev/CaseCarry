@@ -5,8 +5,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Printer,
-  Download,
-  Share2,
   FileText,
   ShieldCheck,
   CheckCircle2,
@@ -14,7 +12,9 @@ import {
   Clock,
   Layers,
   FileCheck2,
-  Check
+  Check,
+  HelpCircle,
+  ExternalLink
 } from 'lucide-react';
 import { CaseRecord } from '@/types/case';
 import { ProvenanceBadge } from './ProvenanceBadge';
@@ -31,6 +31,15 @@ export function CarryForwardBundleView({
   onBack,
 }: CarryForwardBundleViewProps) {
   const includedEvidence = caseData.evidence.filter((e) => e.privacyStatus !== 'private');
+
+  // Redact helper: masks sensitive patterns (e.g. 10+ digits, emails, phone numbers)
+  const applyRedaction = (text: string, isRedacted: boolean) => {
+    if (!isRedacted || !text) return text;
+    return text
+      .replace(/(\+?234|0)[789][01]\d{8}/g, '[PHONE REDACTED]')
+      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL REDACTED]')
+      .replace(/\b\d{8,12}\b/g, (match) => `${match.slice(0, 3)}***${match.slice(-2)}`);
+  };
 
   const handlePrint = () => {
     window.print();
@@ -89,7 +98,7 @@ export function CarryForwardBundleView({
             <span className="font-mono font-bold uppercase tracking-wider text-[#2457C5]">
               CaseCarry Portable Case Record
             </span>
-            <span>Record ID: {caseData.id} • Updated: {caseData.updatedAt}</span>
+            <span>Record ID: {caseData.id} • Date: {caseData.updatedAt || 'Recent'}</span>
           </div>
 
           <h2 className="text-xl sm:text-2xl font-bold text-[#172033]">
@@ -99,62 +108,65 @@ export function CarryForwardBundleView({
           <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-[#F8F7F3] p-3 rounded-xl border border-[#D9DEE7]">
             <div>
               <span className="text-[#526071] block">Citizen / Complainant:</span>
-              <span className="font-bold text-[#172033]">{caseData.citizenName}</span>
+              <span className="font-bold text-[#172033]">{caseData.citizenName || 'Citizen'}</span>
             </div>
             <div>
               <span className="text-[#526071] block">Service Provider:</span>
-              <span className="font-bold text-[#172033]">{caseData.provider}</span>
+              <span className="font-bold text-[#172033]">{caseData.provider || 'Service Provider'}</span>
             </div>
             <div>
-              <span className="text-[#526071] block">Account Reference:</span>
-              <span className="font-mono font-bold text-[#172033]">{caseData.accountReference || '0456789123'}</span>
+              <span className="text-[#526071] block">Reference / Account:</span>
+              <span className="font-mono font-bold text-[#172033]">
+                {caseData.accountReference || 'Not provided'}
+              </span>
             </div>
             <div>
-              <span className="text-[#526071] block">Status:</span>
+              <span className="text-[#526071] block">Current Status:</span>
               <span className="font-bold text-rose-700">Unresolved</span>
             </div>
           </div>
         </div>
 
-        {/* 1. Case Overview */}
+        {/* 1. Case Overview / Original Dispute */}
         <section className="space-y-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-[#526071] flex items-center gap-2">
-            <span>1. Case Overview</span>
+            <span>1. Original Dispute & Context</span>
           </h3>
           <div className="p-4 bg-slate-50 border border-[#D9DEE7] rounded-xl text-sm leading-relaxed text-[#172033]">
-            Citizen Adebayo Olatunji has maintained full timely payment for electrical utility services under Account 0456789123. Despite possessing a functional meter, IBEDC issued arbitrary estimated charges of ₦64,438.50 for July 2026, which the citizen paid via USSD on 12 August. Following a formal dispute (Ref: CCU-12345), IBEDC issued conflicting letters claiming resolution while their official WhatsApp stated the complaint was still under review. The subsequent August bill of ₦106,492.50 double-counted the uncredited balance and continued arbitrary estimated billing.
+            {caseData.unresolved.originalIssue ||
+              `The dispute concerns unresolved service or billing issues with ${caseData.provider}. The citizen initiated a complaint following improper outcome or failure to resolve.`}
           </div>
         </section>
 
         {/* 2. What Remains Unresolved */}
         <section className="space-y-2">
           <h3 className="text-sm font-bold uppercase tracking-wider text-[#526071] flex items-center gap-2">
-            <span>2. What Remains Unresolved</span>
+            <span>2. What Remains Unresolved (Current Broken State)</span>
           </h3>
           <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-xl space-y-2 text-sm text-[#172033]">
             <p className="font-semibold text-rose-900 leading-relaxed">
-              {caseData.unresolved.problem}
+              {caseData.unresolved.problem || caseData.unresolved.whatWasNotResolved}
             </p>
           </div>
         </section>
 
-        {/* 3. What Has Already Been Tried & Prior Responses */}
+        {/* 3. Steps Taken & Responses Received */}
         <section className="space-y-3">
           <h3 className="text-sm font-bold uppercase tracking-wider text-[#526071]">
-            <span>3. What Has Already Been Tried & Responses Received</span>
+            <span>3. Steps Taken & Prior Responses</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
             <div className="p-4 bg-white border border-[#D9DEE7] rounded-xl space-y-1.5">
               <span className="font-bold text-[#526071] block uppercase text-xs">Steps Taken</span>
               <p className="text-[#172033] whitespace-pre-line leading-relaxed">
-                {caseData.unresolved.alreadyTried}
+                {caseData.unresolved.alreadyTried || 'Documented in attached chronology.'}
               </p>
             </div>
 
             <div className="p-4 bg-white border border-[#D9DEE7] rounded-xl space-y-1.5">
               <span className="font-bold text-[#526071] block uppercase text-xs">Responses Received</span>
               <p className="text-[#172033] whitespace-pre-line leading-relaxed">
-                {caseData.unresolved.responseReceived}
+                {caseData.unresolved.responseReceived || 'No satisfactory response received.'}
               </p>
             </div>
           </div>
@@ -167,7 +179,7 @@ export function CarryForwardBundleView({
           </h3>
           <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl text-sm leading-relaxed text-[#172033] space-y-2">
             <p className="font-medium text-[#172033]">
-              {caseData.unresolved.requestedAction}
+              {caseData.unresolved.requestedAction || 'Resolution of the disputed problem and correction of records.'}
             </p>
             {caseData.unresolved.resolutionVision && (
               <div className="pt-2 border-t border-blue-200/60 text-xs text-[#526071]">
@@ -191,7 +203,10 @@ export function CarryForwardBundleView({
 
           <div className="border border-[#D9DEE7] rounded-xl overflow-hidden divide-y divide-slate-200 text-xs">
             {caseData.events.map((ev) => (
-              <div key={ev.id} className="p-3.5 sm:p-4 bg-white hover:bg-slate-50 flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+              <div
+                key={ev.id}
+                className="p-3.5 sm:p-4 bg-white hover:bg-slate-50 flex flex-col sm:flex-row sm:items-start justify-between gap-2"
+              >
                 <div className="sm:w-32 shrink-0">
                   <span className="font-bold text-[#526071] block">{ev.displayDate}</span>
                 </div>
@@ -231,40 +246,67 @@ export function CarryForwardBundleView({
             </span>
           </h3>
 
-          <div className="border border-[#D9DEE7] rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
-            {includedEvidence.map((doc, idx) => (
-              <div key={doc.id} className="p-3 bg-white flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-[#526071] w-6">#{idx + 1}</span>
-                  <div>
-                    <span className="font-bold text-[#172033] block">{doc.title}</span>
-                    <span className="text-[11px] text-[#526071]">
-                      {doc.filename} • {doc.size} • {doc.uploadDate}
-                    </span>
+          {includedEvidence.length > 0 ? (
+            <div className="border border-[#D9DEE7] rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
+              {includedEvidence.map((doc, idx) => (
+                <div key={doc.id} className="p-3 bg-white flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-[#526071] w-6">#{idx + 1}</span>
+                    <div>
+                      <span className="font-bold text-[#172033] block">{doc.title}</span>
+                      <span className="text-[11px] text-[#526071]">
+                        {doc.filename} • {doc.size}
+                      </span>
+                    </div>
                   </div>
+                  <span className="text-[11px] font-semibold text-[#18794E] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {doc.privacyStatus === 'redacted' ? 'Redacted Details' : 'Full Document Attached'}
+                  </span>
                 </div>
-                <span className="text-[11px] font-semibold text-[#18794E] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  {doc.privacyStatus === 'redacted' ? 'Redacted' : 'Verified Original Attached'}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-[#526071] italic">
+              All attached documents were designated as private by the citizen.
+            </p>
+          )}
         </section>
 
-        {/* 7. Uncertainty & Disputed Facts */}
-        <section className="space-y-2">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-[#526071]">
-            <span>7. Uncertainty & Conflicts Noted</span>
-          </h3>
-          <div className="p-4 bg-amber-50/50 border border-amber-200 rounded-xl text-xs sm:text-sm text-[#A15C00] space-y-1 leading-relaxed">
-            <p>
-              <strong>1. Conflicting Institutional Statements:</strong> IBEDC Abeokuta Customer Care Unit letter dated 03 September stated adjustments had been effected and matter was closed; however, on 07 September, IBEDC Care stated on WhatsApp that the complaint is still under review.
-            </p>
-            <p>
-              <strong>2. Uncredited Payment:</strong> A USSD payment of ₦64,438.50 on 12 August (TRX-IBEDC-982341) does not appear as a credit on the 31 August bill.
-            </p>
-          </div>
-        </section>
+        {/* 7. Contradictions & Missing Information Surfaced */}
+        {((caseData.contradictions && caseData.contradictions.length > 0) ||
+          (caseData.missingInformation && caseData.missingInformation.length > 0)) && (
+          <section className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[#526071]">
+              <span>7. Surfaced Contradictions & Missing Information</span>
+            </h3>
+
+            {caseData.contradictions && caseData.contradictions.length > 0 && (
+              <div className="p-4 bg-rose-50/60 border border-rose-200 rounded-xl text-xs space-y-1">
+                <span className="font-bold text-rose-900 block flex items-center gap-1.5">
+                  <AlertTriangle size={14} /> Contradictions in Institutional Records:
+                </span>
+                <ul className="list-disc list-inside space-y-1 text-rose-950">
+                  {caseData.contradictions.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {caseData.missingInformation && caseData.missingInformation.length > 0 && (
+              <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl text-xs space-y-1">
+                <span className="font-bold text-amber-900 block flex items-center gap-1.5">
+                  <HelpCircle size={14} /> Missing Records & Noted Uncertainties:
+                </span>
+                <ul className="list-disc list-inside space-y-1 text-amber-950">
+                  {caseData.missingInformation.map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Recipient Neutrality Notice */}
         <div className="pt-6 border-t border-[#D9DEE7] text-center text-xs text-[#526071] space-y-1">

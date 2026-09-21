@@ -1,14 +1,29 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, MessageSquareOff, XCircle, Share2, HelpCircle, MoreHorizontal, RotateCcw } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  MessageSquareOff,
+  XCircle,
+  Share2,
+  HelpCircle,
+  MoreHorizontal,
+  RotateCcw,
+  Building2,
+  FileText
+} from 'lucide-react';
 
 interface CaseEntryViewProps {
   selectedOutcome: string;
-  onSelectOutcome: (outcome: string) => void;
+  providerName?: string;
+  referenceNumber?: string;
+  initialSummary?: string;
+  onUpdateContext: (outcome: string, provider: string, refNum: string, summary: string) => void;
   onContinue: () => void;
   onBack: () => void;
-  onPreloadDemo?: () => void;
+  isDemoMode?: boolean;
+  onSwitchToReal?: () => void;
 }
 
 const OUTCOME_OPTIONS = [
@@ -39,7 +54,7 @@ const OUTCOME_OPTIONS = [
   {
     id: 'something-else',
     title: 'Something else',
-    description: 'A different situation occurred (e.g. repeated delays, lost files).',
+    description: 'A different situation occurred (e.g. repeated delays, unkept promises, lost files).',
     icon: MoreHorizontal,
   },
   {
@@ -52,20 +67,58 @@ const OUTCOME_OPTIONS = [
 
 export function CaseEntryView({
   selectedOutcome,
-  onSelectOutcome,
+  providerName = '',
+  referenceNumber = '',
+  initialSummary = '',
+  onUpdateContext,
   onContinue,
   onBack,
-  onPreloadDemo,
+  isDemoMode,
+  onSwitchToReal,
 }: CaseEntryViewProps) {
   const [outcome, setOutcome] = useState<string>(selectedOutcome || '');
+  const [provider, setProvider] = useState<string>(providerName);
+  const [refNum, setRefNum] = useState<string>(referenceNumber);
+  const [summary, setSummary] = useState<string>(initialSummary);
 
   const handleSelect = (id: string) => {
     setOutcome(id);
-    onSelectOutcome(id);
+    onUpdateContext(id, provider, refNum, summary);
   };
+
+  const handleFieldChange = (field: 'provider' | 'refNum' | 'summary', val: string) => {
+    if (field === 'provider') setProvider(val);
+    if (field === 'refNum') setRefNum(val);
+    if (field === 'summary') setSummary(val);
+    onUpdateContext(
+      outcome,
+      field === 'provider' ? val : provider,
+      field === 'refNum' ? val : refNum,
+      field === 'summary' ? val : summary
+    );
+  };
+
+  const canContinue = outcome.length > 0;
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {/* Demo Banner */}
+      {isDemoMode && (
+        <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-900">
+          <span>
+            <strong>Sample case mode:</strong> Fictional demonstration data is active.
+          </span>
+          {onSwitchToReal && (
+            <button
+              onClick={onSwitchToReal}
+              className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 rounded text-[11px] font-semibold text-amber-800"
+            >
+              Start a real case (blank)
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Back button */}
       <button
         onClick={onBack}
@@ -77,7 +130,7 @@ export function CaseEntryView({
 
       {/* Progress pill */}
       <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#2457C5] text-xs font-semibold border border-blue-100">
-        <span>Step 1 of 6</span>
+        <span>Step 1 of 8</span>
         <span>•</span>
         <span>Case Context</span>
       </div>
@@ -87,7 +140,7 @@ export function CaseEntryView({
         What happened after you first reported it?
       </h1>
       <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
-        Before we organize your case, tell us what happened after your first report. You can correct anything later.
+        Before we organize your case, select what occurred after your initial complaint. You can correct or expand anything later.
       </p>
 
       {/* Options List */}
@@ -129,61 +182,98 @@ export function CaseEntryView({
                   <div className="text-base font-bold text-[#172033]">
                     {opt.title}
                   </div>
-                  <p className="text-xs sm:text-sm text-[#526071] mt-0.5 leading-relaxed">
+                  <div className="text-xs sm:text-sm text-[#526071] mt-0.5 leading-relaxed">
                     {opt.description}
-                  </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Radio Indicator */}
-              <div
-                className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 mt-1 transition-colors ${
-                  isSelected
-                    ? 'border-[#2457C5] bg-[#2457C5] text-white'
-                    : 'border-[#D9DEE7] bg-white'
-                }`}
-              >
-                {isSelected && <CheckCircle2 size={16} />}
+              <div className="shrink-0 mt-1">
+                <div
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                    isSelected
+                      ? 'border-[#2457C5] bg-[#2457C5]'
+                      : 'border-slate-300 bg-white'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  )}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Quick Demo Preload Banner */}
-      {onPreloadDemo && (
-        <div className="mt-6 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-[#A15C00] flex items-center justify-between">
-          <span>
-            Demonstrating a real case? Select <strong>“Response didn’t resolve it”</strong> or load the sample dispute.
-          </span>
-          <button
-            onClick={onPreloadDemo}
-            className="px-2.5 py-1 bg-amber-200/70 hover:bg-amber-200 text-[#A15C00] font-bold rounded-lg shrink-0 ml-2"
-          >
-            Pre-fill Demo
-          </button>
-        </div>
-      )}
+      {/* Optional Context Details Form */}
+      <div className="mt-8 pt-6 border-t border-[#D9DEE7] space-y-4">
+        <h3 className="text-sm font-bold text-[#172033] flex items-center gap-2">
+          <Building2 size={16} className="text-[#2457C5]" />
+          <span>Case Details (Optional but helpful)</span>
+        </h3>
 
-      {/* Bottom Action Bar */}
-      <div className="mt-8 pt-4 border-t border-[#D9DEE7] flex items-center justify-between gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-[#526071] mb-1">
+              Who did you report to?
+            </label>
+            <input
+              type="text"
+              value={provider}
+              onChange={(e) => handleFieldChange('provider', e.target.value)}
+              placeholder="e.g. IBEDC, Water Board, Bank, Landlord"
+              className="w-full px-3 py-2 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#526071] mb-1">
+              Reference or Ticket # (if any)
+            </label>
+            <input
+              type="text"
+              value={refNum}
+              onChange={(e) => handleFieldChange('refNum', e.target.value)}
+              placeholder="e.g. CCU-12345 or Account #"
+              className="w-full px-3 py-2 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#526071] mb-1">
+            Brief summary of what happened
+          </label>
+          <textarea
+            rows={2}
+            value={summary}
+            onChange={(e) => handleFieldChange('summary', e.target.value)}
+            placeholder="e.g. Disputed wrong estimated billing in July; received closure letter claiming resolution, but subsequent bill was higher and payment uncredited."
+            className="w-full px-3 py-2 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
+          />
+        </div>
+      </div>
+
+      {/* Action Footer */}
+      <div className="mt-8 pt-4 flex items-center justify-between">
         <button
           onClick={onBack}
-          className="px-4 py-2.5 rounded-xl border border-[#D9DEE7] text-sm font-semibold text-[#526071] hover:text-[#172033] bg-white hover:bg-slate-50 transition-colors"
+          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
         >
-          Cancel
+          Back
         </button>
 
         <button
           onClick={onContinue}
-          disabled={!outcome}
-          className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all ${
-            outcome
+          disabled={!canContinue}
+          className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+            canContinue
               ? 'bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs'
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          <span>Continue</span>
+          <span>Continue to Evidence</span>
           <ArrowRight size={16} />
         </button>
       </div>
