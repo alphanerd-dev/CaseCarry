@@ -13,6 +13,7 @@ import {
   Building2,
   FileText
 } from 'lucide-react';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 
 interface CaseEntryViewProps {
   selectedOutcome: string;
@@ -24,46 +25,8 @@ interface CaseEntryViewProps {
   onBack: () => void;
   isDemoMode?: boolean;
   onSwitchToReal?: () => void;
+  currentLanguage?: SupportedLanguage;
 }
-
-const OUTCOME_OPTIONS = [
-  {
-    id: 'no-response',
-    title: 'No response',
-    description: 'I never received a response after submitting my complaint or report.',
-    icon: MessageSquareOff,
-  },
-  {
-    id: 'rejected-or-closed',
-    title: 'Rejected or closed',
-    description: 'My case was formally rejected or closed by the organization.',
-    icon: XCircle,
-  },
-  {
-    id: 'transferred-elsewhere',
-    title: 'Transferred elsewhere',
-    description: 'I was told to contact someone else, another desk, or another agency.',
-    icon: Share2,
-  },
-  {
-    id: 'response-didnt-resolve',
-    title: 'Response didn’t resolve it',
-    description: 'I received a response, letter, or promise, but the underlying problem remains.',
-    icon: RotateCcw,
-  },
-  {
-    id: 'something-else',
-    title: 'Something else',
-    description: 'A different situation occurred (e.g. repeated delays, unkept promises, lost files).',
-    icon: MoreHorizontal,
-  },
-  {
-    id: 'not-sure',
-    title: 'I’m not sure',
-    description: 'I am not certain about the current status or what the official outcome was.',
-    icon: HelpCircle,
-  },
-];
 
 export function CaseEntryView({
   selectedOutcome,
@@ -75,11 +38,47 @@ export function CaseEntryView({
   onBack,
   isDemoMode,
   onSwitchToReal,
+  currentLanguage = 'en',
 }: CaseEntryViewProps) {
   const [outcome, setOutcome] = useState<string>(selectedOutcome || '');
   const [provider, setProvider] = useState<string>(providerName);
   const [refNum, setRefNum] = useState<string>(referenceNumber);
   const [summary, setSummary] = useState<string>(initialSummary);
+
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
+
+  const OUTCOME_OPTIONS = [
+    {
+      id: 'no-response',
+      title: t.outcomeNoResponse,
+      description: t.outcomeNoResponseDesc,
+      icon: MessageSquareOff,
+    },
+    {
+      id: 'response-didnt-resolve',
+      title: t.outcomeDidntResolve,
+      description: t.outcomeDidntResolveDesc,
+      icon: RotateCcw,
+    },
+    {
+      id: 'rejected-or-closed',
+      title: t.outcomeClosedWithoutReason,
+      description: t.outcomeClosedWithoutReasonDesc,
+      icon: XCircle,
+    },
+    {
+      id: 'transferred-elsewhere',
+      title: t.outcomeReferredLoop,
+      description: t.outcomeReferredLoopDesc,
+      icon: Share2,
+    },
+    {
+      id: 'something-else',
+      title: t.outcomeOther,
+      description: t.outcomeOtherDesc,
+      icon: MoreHorizontal,
+    },
+  ];
 
   const handleSelect = (id: string) => {
     setOutcome(id);
@@ -106,14 +105,14 @@ export function CaseEntryView({
       {isDemoMode && (
         <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-900">
           <span>
-            <strong>Sample case mode:</strong> Fictional demonstration data is active.
+            <strong>{t.fictionalDemo}:</strong> {t.demoNotice}
           </span>
           {onSwitchToReal && (
             <button
               onClick={onSwitchToReal}
               className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 rounded text-[11px] font-semibold text-amber-800"
             >
-              Start a real case (blank)
+              {t.switchToRealCase}
             </button>
           )}
         </div>
@@ -125,26 +124,26 @@ export function CaseEntryView({
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] mb-6 p-1 rounded-md transition-colors"
       >
         <ArrowLeft size={16} />
-        <span>Back to Home</span>
+        <span>{t.back}</span>
       </button>
 
       {/* Progress pill */}
       <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#2457C5] text-xs font-semibold border border-blue-100">
         <span>Step 1 of 8</span>
         <span>•</span>
-        <span>Case Context</span>
+        <span>{t.stepContext}</span>
       </div>
 
       {/* Header */}
       <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
-        What happened after you first reported it?
+        {t.entryTitle}
       </h1>
       <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
-        Before we organize your case, select what occurred after your initial complaint. You can correct or expand anything later.
+        {t.entrySubtitle}
       </p>
 
       {/* Options List */}
-      <div className="mt-8 space-y-3" role="radiogroup" aria-label="What happened after your first report">
+      <div className="mt-8 space-y-3" role="radiogroup" aria-label={t.outcomeQuestion}>
         {OUTCOME_OPTIONS.map((opt) => {
           const isSelected = outcome === opt.id;
           const Icon = opt.icon;
@@ -210,32 +209,32 @@ export function CaseEntryView({
       <div className="mt-8 pt-6 border-t border-[#D9DEE7] space-y-4">
         <h3 className="text-sm font-bold text-[#172033] flex items-center gap-2">
           <Building2 size={16} className="text-[#2457C5]" />
-          <span>Case Details (Optional but helpful)</span>
+          <span>{t.providerQuestion}</span>
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-[#526071] mb-1">
-              Who did you report to?
+              {t.providerQuestion}
             </label>
             <input
               type="text"
               value={provider}
               onChange={(e) => handleFieldChange('provider', e.target.value)}
-              placeholder="e.g. IBEDC, Water Board, Bank, Landlord"
+              placeholder={t.providerPlaceholder}
               className="w-full px-3 py-2 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-[#526071] mb-1">
-              Reference or Ticket # (if any)
+              {t.refNumberQuestion}
             </label>
             <input
               type="text"
               value={refNum}
               onChange={(e) => handleFieldChange('refNum', e.target.value)}
-              placeholder="e.g. CCU-12345 or Account #"
+              placeholder={t.refNumberPlaceholder}
               className="w-full px-3 py-2 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
             />
           </div>
@@ -243,13 +242,13 @@ export function CaseEntryView({
 
         <div>
           <label className="block text-xs font-semibold text-[#526071] mb-1">
-            Brief summary of what happened
+            {t.summaryQuestion}
           </label>
           <textarea
             rows={2}
             value={summary}
             onChange={(e) => handleFieldChange('summary', e.target.value)}
-            placeholder="e.g. Disputed wrong estimated billing in July; received closure letter claiming resolution, but subsequent bill was higher and payment uncredited."
+            placeholder={t.summaryPlaceholder}
             className="w-full px-3 py-2 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden"
           />
         </div>
@@ -261,7 +260,7 @@ export function CaseEntryView({
           onClick={onBack}
           className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
         >
-          Back
+          {t.back}
         </button>
 
         <button
@@ -273,7 +272,7 @@ export function CaseEntryView({
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          <span>Continue to Evidence</span>
+          <span>{t.continue}</span>
           <ArrowRight size={16} />
         </button>
       </div>

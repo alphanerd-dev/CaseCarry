@@ -184,6 +184,48 @@ export function Header({
                       <span>Yorùbá</span>
                       {currentLanguage === 'yo' && <span>✓</span>}
                     </button>
+                    <button
+                      onClick={() => {
+                        onChangeLanguage?.('ha');
+                        setLangNoticeOpen(false);
+                      }}
+                      className={`w-full text-left px-2 py-1 rounded text-[11px] flex justify-between items-center ${
+                        currentLanguage === 'ha'
+                          ? 'bg-blue-50 text-[#2457C5] font-semibold'
+                          : 'text-[#172033] hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>Hausa</span>
+                      {currentLanguage === 'ha' && <span>✓</span>}
+                    </button>
+                    <button
+                      onClick={() => {
+                        onChangeLanguage?.('ig');
+                        setLangNoticeOpen(false);
+                      }}
+                      className={`w-full text-left px-2 py-1 rounded text-[11px] flex justify-between items-center ${
+                        currentLanguage === 'ig'
+                          ? 'bg-blue-50 text-[#2457C5] font-semibold'
+                          : 'text-[#172033] hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>Igbo</span>
+                      {currentLanguage === 'ig' && <span>✓</span>}
+                    </button>
+                    <button
+                      onClick={() => {
+                        onChangeLanguage?.('pcm');
+                        setLangNoticeOpen(false);
+                      }}
+                      className={`w-full text-left px-2 py-1 rounded text-[11px] flex justify-between items-center ${
+                        currentLanguage === 'pcm'
+                          ? 'bg-blue-50 text-[#2457C5] font-semibold'
+                          : 'text-[#172033] hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>Nigerian Pidgin</span>
+                      {currentLanguage === 'pcm' && <span>✓</span>}
+                    </button>
                   </div>
                   <button
                     onClick={() => setLangNoticeOpen(false)}

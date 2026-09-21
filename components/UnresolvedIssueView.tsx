@@ -14,6 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { UnresolvedIssue } from '@/types/case';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 
 interface UnresolvedIssueViewProps {
   unresolved: UnresolvedIssue;
@@ -21,6 +22,7 @@ interface UnresolvedIssueViewProps {
   onContinue: () => void;
   onBack: () => void;
   isDemoMode?: boolean;
+  currentLanguage?: SupportedLanguage;
 }
 
 export function UnresolvedIssueView({
@@ -29,6 +31,7 @@ export function UnresolvedIssueView({
   onContinue,
   onBack,
   isDemoMode,
+  currentLanguage = 'en',
 }: UnresolvedIssueViewProps) {
   const [formData, setFormData] = useState<UnresolvedIssue>({
     problem: unresolved.problem || '',
@@ -42,6 +45,8 @@ export function UnresolvedIssueView({
     resolutionVision: unresolved.resolutionVision || '',
     alreadyTried: unresolved.alreadyTried || '',
   });
+
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
   const handleChange = (field: keyof UnresolvedIssue, value: string) => {
     const updated = { ...formData, [field]: value };
@@ -66,22 +71,22 @@ export function UnresolvedIssueView({
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] mb-6 p-1 rounded-md transition-colors"
       >
         <ArrowLeft size={16} />
-        <span>Back to Verification</span>
+        <span>{t.back}</span>
       </button>
 
       {/* Progress pill */}
       <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#2457C5] text-xs font-semibold border border-blue-100">
         <span>Step 5 of 8</span>
         <span>•</span>
-        <span>Unresolved Issue Definition</span>
+        <span>{t.stepUnresolved}</span>
       </div>
 
       {/* Heading */}
       <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
-        What remains unresolved?
+        {t.unresolvedTitle}
       </h1>
       <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
-        This is the part an advocate, regulator, or receiving official needs to understand immediately. Explain in your own words — no legal jargon required.
+        {t.unresolvedSubtitle}
       </p>
 
       {/* Distinction Callout: Original Dispute vs Current Problem */}
@@ -220,7 +225,7 @@ export function UnresolvedIssueView({
           onClick={onBack}
           className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
         >
-          Back to Verification
+          {t.back}
         </button>
 
         <button
@@ -232,7 +237,7 @@ export function UnresolvedIssueView({
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          <span>Continue to Optional Pathway</span>
+          <span>{t.continue}</span>
           <ArrowRight size={16} />
         </button>
       </div>

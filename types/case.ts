@@ -3,7 +3,29 @@ export type ProvenanceType =
   | 'user-reported'
   | 'inferred'
   | 'needs-review'
-  | 'conflict';
+  | 'conflict'
+  | 'unknown'
+  | 'SOURCE_BACKED'
+  | 'USER_REPORTED'
+  | 'AI_INFERRED'
+  | 'NEEDS_REVIEW'
+  | 'SOURCE_CONFLICT';
+
+export type DatePrecision =
+  | 'exact'
+  | 'month'
+  | 'approximate'
+  | 'relative'
+  | 'unknown'
+  | 'conflict'
+  | 'not-established'
+  | 'unspecified';
+
+export type PrivacyStatus =
+  | 'included'
+  | 'private'
+  | 'excluded'
+  | 'redacted';
 
 export type CaseStatus =
   | 'draft'
@@ -24,11 +46,22 @@ export interface EvidenceFile {
   uploadDate: string;
   pageCount: number;
   size: string;
-  processingStatus: 'processed' | 'processing' | 'error' | 'pending';
-  privacyStatus: 'included' | 'private' | 'redacted';
+  processingStatus:
+    | 'processed'
+    | 'processing'
+    | 'error'
+    | 'pending'
+    | 'extracted'
+    | 'binary-ready'
+    | 'metadata-only'
+    | 'ready';
+  privacyStatus: PrivacyStatus;
   redactedItems?: string[];
   contentSummary: string;
   fullSnippet?: string;
+  redactedSnippet?: string;
+  redactedKeyFields?: string[];
+  extractedText?: string;
   fileReference?: string;
   keyFields?: { label: string; value: string }[];
   // Real file handling fields
@@ -40,9 +73,10 @@ export interface EvidenceFile {
 
 export interface CaseEvent {
   id: string;
-  date: string;
+  date: string | null;
+  dateText?: string;
   displayDate: string;
-  datePrecision?: 'exact' | 'approximate' | 'unspecified';
+  datePrecision?: DatePrecision;
   title: string;
   description: string;
   provenance: ProvenanceType;
@@ -50,7 +84,9 @@ export interface CaseEvent {
   sourceIds: string[];
   sourceNames: string[];
   sourceQuote?: string;
+  sourceLocation?: string;
   verifiedByUser: boolean;
+  verificationStatus?: 'confirmed' | 'edited' | 'deleted' | 'disputed' | 'unreviewed';
   disputed?: boolean;
   conflictDetails?: string;
   needsReviewReason?: string;
@@ -71,20 +107,49 @@ export interface UnresolvedIssue {
   alreadyTried?: string;
 }
 
+export interface PathwaySupportingFact {
+  label: string;
+  fact: string;
+  provenance: ProvenanceType;
+  sourceNames?: string[];
+}
+
 export interface Pathway {
   id: string;
   name: string;
   organization: string;
   jurisdiction: string;
+  pathwayType?: 'internal_escalation' | 'sector_regulator' | 'ombudsman' | 'consumer_protection' | 'tribunal_dispute' | 'legal_aid' | 'safety_emergency';
   whyRelevant: string;
+  relevanceReason?: string;
+  supportingCaseFacts?: PathwaySupportingFact[];
   eligibility: string;
   requiredDocuments: string[];
+  steps?: string[];
   officialSource: string;
   sourceUrl?: string;
   lastCheckedDate: string;
   warning: string;
+  warnings?: string[];
   whatWeDontKnow?: string;
+  uncertainties?: string[];
   statusNotes?: string;
+  confidence?: 'high' | 'medium' | 'low';
+  confidenceExplanation?: string;
+  status?: 'POTENTIAL' | 'RELEVANCE_CONFIRMED' | 'NEEDS_VERIFICATION' | 'PREVIOUSLY_ATTEMPTED' | 'NOT_RELEVANT' | 'UNAVAILABLE' | 'STALE';
+  isStale?: boolean;
+  staleNotice?: string;
+  userNotes?: string;
+  previousAttemptNotes?: string;
+}
+
+export interface ExtractedCaseFact {
+  field: string;
+  label: string;
+  value: string;
+  provenance: ProvenanceType;
+  sourceIds: string[];
+  sourceNames?: string[];
 }
 
 export interface CaseRecord {
@@ -99,6 +164,14 @@ export interface CaseRecord {
   unresolved: UnresolvedIssue;
   selectedPathways: string[];
   pathways?: Pathway[];
+  extractedFacts?: ExtractedCaseFact[];
+  pathwayDiscoverySource?: 'live_research' | 'verified_cache' | 'local_fallback';
+  safetyAlert?: {
+    isHighRisk: boolean;
+    riskType?: string;
+    advisory: string;
+    emergencyResources?: Array<{ name: string; contact: string; note: string }>;
+  };
   contradictions?: string[];
   missingInformation?: string[];
   createdAt: string;
@@ -107,4 +180,23 @@ export interface CaseRecord {
   isCompleted?: boolean;
   isDemo?: boolean;
   status?: CaseStatus;
+  verificationReviewed?: boolean;
+  reconstructionMethod?: 'gemini' | 'openai' | 'grok' | 'deterministic' | 'local' | 'fallback-draft' | 'user-created';
+  reconstructionNotice?: string;
+  sourcesAnalyzedCount?: number;
+  aiProcessing?: {
+    provider: 'gemini' | 'openai' | 'grok' | 'deterministic';
+    model: string;
+    fallbackUsed: boolean;
+    primaryProvider?: string;
+    fallbackReason?: string;
+    generatedAt: string;
+    fallbackHistory?: Array<{
+      provider: string;
+      model: string;
+      failureType: string;
+      message: string;
+      timestamp: string;
+    }>;
+  };
 }

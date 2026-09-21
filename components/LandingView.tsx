@@ -22,16 +22,24 @@ import {
   Clock,
   ArrowDown
 } from 'lucide-react';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 
 interface LandingViewProps {
   onStartCase: () => void;
   onLoadDemoCase?: () => void;
   onExploreSampleCase?: () => void;
   onScrollToSection?: (sectionId: string) => void;
+  currentLanguage?: SupportedLanguage;
 }
 
-export function LandingView({ onStartCase, onLoadDemoCase, onExploreSampleCase }: LandingViewProps) {
+export function LandingView({
+  onStartCase,
+  onLoadDemoCase,
+  onExploreSampleCase,
+  currentLanguage = 'en',
+}: LandingViewProps) {
   const handleLoadDemo = onExploreSampleCase || onLoadDemoCase || onStartCase;
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
   return (
     <div className="space-y-16 sm:space-y-24 pb-16">
@@ -41,17 +49,17 @@ export function LandingView({ onStartCase, onLoadDemoCase, onExploreSampleCase }
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-[#2457C5]/20 text-xs font-semibold text-[#2457C5]">
             <ShieldCheck size={14} />
-            <span>Citizen-Controlled Case Continuity</span>
+            <span>{t.citizenCaseContinuity}</span>
           </div>
 
           {/* Main Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#172033] leading-[1.15]">
-            Don’t tell your story again.
+            {t.tagline}
           </h1>
 
           {/* Supporting Copy */}
           <p className="text-lg sm:text-xl text-[#526071] leading-relaxed max-w-2xl mx-auto">
-            Turn your previous reports, complaints, responses, and evidence into one clear, verified case record you can carry forward when the issue remains unresolved.
+            {t.entrySubtitle}
           </p>
 
           {/* Actions */}
@@ -60,7 +68,7 @@ export function LandingView({ onStartCase, onLoadDemoCase, onExploreSampleCase }
               onClick={onStartCase}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-base font-semibold rounded-xl shadow-sm transition-all focus:ring-4 focus:ring-[#2457C5]/20"
             >
-              <span>Carry my case forward</span>
+              <span>{t.carryCaseForward}</span>
               <ArrowRight size={18} />
             </button>
 
@@ -71,16 +79,14 @@ export function LandingView({ onStartCase, onLoadDemoCase, onExploreSampleCase }
               }}
               className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 bg-white hover:bg-slate-50 text-[#172033] text-base font-medium rounded-xl border border-[#D9DEE7] transition-colors"
             >
-              How it works
+              {t.howItWorks}
             </button>
           </div>
 
           {/* Trust Statement */}
           <div className="pt-2 text-xs sm:text-sm text-[#526071] flex items-center justify-center gap-1.5 max-w-xl mx-auto">
             <Shield size={16} className="text-[#18794E] shrink-0" />
-            <span>
-              <strong>You stay in control.</strong> CaseCarry helps organize your information; you review and approve what gets included.
-            </span>
+            <span>{t.trustStatement}</span>
           </div>
 
           {/* Quick Demo Pre-load Pill */}
@@ -90,9 +96,7 @@ export function LandingView({ onStartCase, onLoadDemoCase, onExploreSampleCase }
               className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#A15C00] rounded-lg text-xs font-medium transition-colors"
             >
               <Zap size={14} className="text-[#A15C00]" />
-              <span>
-                Try with realistic demo: <strong>Adebayo Olatunji vs. IBEDC Electricity Dispute</strong>
-              </span>
+              <span>{t.tryDemoPill}</span>
               <ArrowRight size={12} />
             </button>
           </div>
@@ -500,7 +504,7 @@ export function LandingView({ onStartCase, onLoadDemoCase, onExploreSampleCase }
             </div>
             <h3 className="text-base font-bold text-[#172033]">Local context</h3>
             <p className="text-xs text-[#526071] leading-relaxed">
-              Includes verifiable local institutions and regulators (such as NERC Forum Offices and FCCPC in Nigeria), official sources, requirements, and dates checked.
+              Includes verifiable local institutions and state regulators (such as OGSERC in Ogun State and FCCPC in Nigeria), official legal sources, requirements, and dates checked.
             </p>
           </div>
         </div>

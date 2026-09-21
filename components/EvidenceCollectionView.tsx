@@ -23,7 +23,9 @@ import {
   X
 } from 'lucide-react';
 import { EvidenceFile } from '@/types/case';
+import { extractPdfContent } from '@/lib/pdfExtract';
 import { ProvenanceBadge } from './ProvenanceBadge';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 
 interface EvidenceCollectionViewProps {
   evidenceList: EvidenceFile[];
@@ -36,6 +38,7 @@ interface EvidenceCollectionViewProps {
   onBack: () => void;
   lowBandwidth: boolean;
   isDemoMode?: boolean;
+  currentLanguage?: SupportedLanguage;
 }
 
 export function EvidenceCollectionView({
@@ -49,6 +52,7 @@ export function EvidenceCollectionView({
   onBack,
   lowBandwidth,
   isDemoMode,
+  currentLanguage = 'en',
 }: EvidenceCollectionViewProps) {
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteTitle, setPasteTitle] = useState('');
@@ -56,17 +60,20 @@ export function EvidenceCollectionView({
   const [pasteCategory, setPasteCategory] = useState<'chat' | 'email' | 'text' | 'letter'>('chat');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const processRealFile = (file: File) => {
+  const processRealFile = async (file: File) => {
     setIsReadingFile(true);
     setUploadError(null);
 
     const isImage = file.type.startsWith('image/');
     const isText = file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.csv');
-    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
     const formattedSize =
       file.size > 1024 * 1024
@@ -85,16 +92,16 @@ export function EvidenceCollectionView({
           uploadDate: 'Today',
           pageCount: 1,
           size: formattedSize,
-          processingStatus: 'processed',
+          processingStatus: 'ready',
           privacyStatus: 'included',
           dataUrl: dataUrl,
-          mimeType: file.type,
+          mimeType: file.type || 'image/jpeg',
           isOriginalRetained: true,
-          contentSummary: `Image receipt or screenshot (${file.name}, ${formattedSize}). Attached for chronology verification.`,
-          fullSnippet: `Attached image screenshot / photograph: ${file.name}. Processed for visual evidence verification.`,
+          contentSummary: `Image receipt or photograph (${file.name}, ${formattedSize}). Stored locally; ready for visual content verification.`,
+          fullSnippet: `Attached image screenshot / photograph: ${file.name}. Preserved for visual evidence verification.`,
           keyFields: [
             { label: 'File Name', value: file.name },
-            { label: 'File Type', value: 'Image / Screenshot' },
+            { label: 'File Type', value: 'Image / Photograph' },
             { label: 'Size', value: formattedSize },
           ],
         };
@@ -118,9 +125,10 @@ export function EvidenceCollectionView({
           uploadDate: 'Today',
           pageCount: 1,
           size: formattedSize,
-          processingStatus: 'processed',
+          processingStatus: 'extracted',
           privacyStatus: 'included',
           rawText: textContent,
+          extractedText: textContent,
           mimeType: 'text/plain',
           isOriginalRetained: true,
           contentSummary: textContent.slice(0, 140) + (textContent.length > 140 ? '...' : ''),
@@ -138,8 +146,27 @@ export function EvidenceCollectionView({
         setIsReadingFile(false);
       };
       reader.readAsText(file);
-    } else {
-      // PDF or other documents
+    } else if (isPdf) {
+      // PDF handling with stream extraction and base64 preservation
+      let pdfExtract = {
+        text: '',
+        pageCountEstimate: 1,
+        isExtracted: false,
+        statusMessage: 'Standard PDF artifact',
+      };
+
+      try {
+        pdfExtract = await extractPdfContent(file);
+      } catch (pdfErr: any) {
+        console.warn('PDF stream extraction error, preserving raw file:', pdfErr);
+        pdfExtract = {
+          text: '',
+          pageCountEstimate: 1,
+          isExtracted: false,
+          statusMessage: 'PDF preserved as binary artifact (text streams not extracted).',
+        };
+      }
+
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
@@ -147,20 +174,62 @@ export function EvidenceCollectionView({
           id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
           filename: file.name,
-          type: isPdf ? 'pdf' : 'letter',
+          type: 'pdf',
+          uploadDate: 'Today',
+          pageCount: pdfExtract.pageCountEstimate,
+          size: formattedSize,
+          processingStatus: pdfExtract.isExtracted ? 'extracted' : 'binary-ready',
+          privacyStatus: 'included',
+          dataUrl: dataUrl,
+          extractedText: pdfExtract.text,
+          mimeType: 'application/pdf',
+          isOriginalRetained: true,
+          contentSummary: pdfExtract.isExtracted
+            ? pdfExtract.text.slice(0, 160) + (pdfExtract.text.length > 160 ? '...' : '')
+            : `PDF document (${file.name}, ${formattedSize}). Preserved as binary artifact for case continuity.`,
+          fullSnippet: pdfExtract.isExtracted
+            ? pdfExtract.text
+            : `Document: ${file.name}\nSize: ${formattedSize}\nType: PDF Document\n${pdfExtract.statusMessage}`,
+          keyFields: [
+            { label: 'Document Name', value: file.name },
+            { label: 'Format', value: 'PDF' },
+            { label: 'Size', value: formattedSize },
+            {
+              label: 'Extraction Status',
+              value: pdfExtract.isExtracted ? 'Text Streams Extracted' : 'Document Binary Preserved',
+            },
+          ],
+        };
+        onAddEvidence(newEvidence);
+        setIsReadingFile(false);
+      };
+      reader.onerror = () => {
+        setUploadError('Failed to read PDF file into local storage.');
+        setIsReadingFile(false);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Generic document
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const newEvidence: EvidenceFile = {
+          id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+          filename: file.name,
+          type: 'letter',
           uploadDate: 'Today',
           pageCount: 1,
           size: formattedSize,
-          processingStatus: 'processed',
+          processingStatus: 'metadata-only',
           privacyStatus: 'included',
           dataUrl: dataUrl,
-          mimeType: file.type || 'application/pdf',
+          mimeType: file.type || 'application/octet-stream',
           isOriginalRetained: true,
           contentSummary: `Document file: ${file.name} (${formattedSize}). Stored locally for case continuity record.`,
           fullSnippet: `Document: ${file.name}\nSize: ${formattedSize}\nType: ${file.type || 'Document'}\nUploaded by citizen.`,
           keyFields: [
             { label: 'Document Name', value: file.name },
-            { label: 'Format', value: isPdf ? 'PDF' : 'Document' },
             { label: 'Size', value: formattedSize },
           ],
         };
@@ -181,8 +250,27 @@ export function EvidenceCollectionView({
     for (let i = 0; i < files.length; i++) {
       processRealFile(files[i]);
     }
-    // reset input
     e.target.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        processRealFile(e.dataTransfer.files[i]);
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
   };
 
   const handlePasteSubmit = (e: React.FormEvent) => {
@@ -192,14 +280,15 @@ export function EvidenceCollectionView({
     const newEvidence: EvidenceFile = {
       id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       title: pasteTitle.trim() || `Citizen Statement (${pasteCategory})`,
-      filename: `Statement_${new Date().toISOString().slice(0, 10)}.txt`,
+      filename: `Statement_${Date.now()}.txt`,
       type: pasteCategory,
       uploadDate: 'Today',
       pageCount: 1,
       size: `${Math.round(pasteContent.length / 1024) || 1} KB`,
-      processingStatus: 'processed',
+      processingStatus: 'extracted',
       privacyStatus: 'included',
       rawText: pasteContent,
+      extractedText: pasteContent,
       isOriginalRetained: true,
       contentSummary: pasteContent.slice(0, 140) + (pasteContent.length > 140 ? '...' : ''),
       fullSnippet: pasteContent,
@@ -229,79 +318,124 @@ export function EvidenceCollectionView({
         </div>
       )}
 
+      {/* Low-Bandwidth Notice */}
+      {lowBandwidth && (
+        <div className="mb-6 p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-700 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Wifi size={14} className="text-slate-600 shrink-0" />
+            <span>
+              <strong>Low-Bandwidth Mode Active:</strong> Rich animations are disabled and lightweight document representations are prioritized to conserve mobile data.
+            </span>
+          </span>
+          <span className="text-[11px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200 shrink-0 ml-2">
+            Low Data
+          </span>
+        </div>
+      )}
+
       {/* Back button */}
       <button
         onClick={onBack}
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] mb-6 p-1 rounded-md transition-colors"
       >
         <ArrowLeft size={16} />
-        <span>Back to Case Context</span>
+        <span>{t.back}</span>
       </button>
 
       {/* Progress pill */}
       <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#2457C5] text-xs font-semibold border border-blue-100">
         <span>Step 2 of 8</span>
         <span>•</span>
-        <span>Evidence & Statements</span>
+        <span>{t.stepEvidence}</span>
       </div>
 
       {/* Heading */}
       <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
-        Add your evidence & statements
+        {t.evidenceTitle}
       </h1>
       <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
-        Upload letters, bills, payment receipts, or screenshot transcripts. You can also paste WhatsApp chats, emails, or type your own summary.
+        {t.evidenceSubtitle}
       </p>
 
-      {/* Mobile-Friendly Upload Action Cards */}
-      <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Option 1: Take Photo / Camera (mobile capture) */}
-        <button
-          onClick={() => cameraInputRef.current?.click()}
-          className="p-4 rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 text-left transition-all group flex sm:flex-col items-center sm:items-start gap-3 shadow-xs"
-        >
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2457C5] flex items-center justify-center shrink-0 group-hover:bg-[#2457C5] group-hover:text-white transition-colors">
-            <Camera size={20} />
+      {/* Drag & Drop Zone and Mobile Upload Buttons */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`mt-8 p-6 rounded-2xl border-2 border-dashed transition-all text-center ${
+          isDragging
+            ? 'border-[#2457C5] bg-blue-50/60 shadow-md'
+            : 'border-[#D9DEE7] bg-white hover:border-slate-400'
+        }`}
+      >
+        <div className="max-w-md mx-auto space-y-2 mb-5">
+          <Upload size={28} className="mx-auto text-[#2457C5]" />
+          <div className="text-sm font-bold text-[#172033]">
+            {t.dropzoneTitle}
           </div>
-          <div>
-            <div className="text-sm font-bold text-[#172033]">Take photo</div>
-            <div className="text-xs text-[#526071] mt-0.5">
-              Snap paper bill, letter, or meter with phone camera
-            </div>
-          </div>
-        </button>
+          <p className="text-xs text-[#526071]">
+            {t.fileSupportText}
+          </p>
+        </div>
 
-        {/* Option 2: Choose File (PDF / Images) */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="p-4 rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 text-left transition-all group flex sm:flex-col items-center sm:items-start gap-3 shadow-xs"
-        >
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#18794E] flex items-center justify-center shrink-0 group-hover:bg-[#18794E] group-hover:text-white transition-colors">
-            <Upload size={20} />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-[#172033]">Choose files</div>
-            <div className="text-xs text-[#526071] mt-0.5">
-              Select PDFs, images, receipts, or documents from device
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Option 1: Take Photo / Camera (mobile capture) */}
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            className="p-4 rounded-xl border border-[#D9DEE7] bg-[#F8F7F3] hover:bg-slate-100 text-left transition-all group flex sm:flex-col items-center sm:items-start gap-3 shadow-xs"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2457C5] flex items-center justify-center shrink-0 group-hover:bg-[#2457C5] group-hover:text-white transition-colors">
+              <Camera size={20} />
             </div>
-          </div>
-        </button>
+            <div>
+              <div className="text-sm font-bold text-[#172033]">Camera / Photo</div>
+              <div className="text-xs text-[#526071] mt-0.5">
+                Snap paper bill or letter with camera
+              </div>
+            </div>
+          </button>
 
-        {/* Option 3: Paste Text / WhatsApp */}
-        <button
-          onClick={() => setPasteModalOpen(true)}
-          className="p-4 rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 text-left transition-all group flex sm:flex-col items-center sm:items-start gap-3 shadow-xs"
-        >
-          <div className="w-10 h-10 rounded-xl bg-purple-50 text-[#5B4BB7] flex items-center justify-center shrink-0 group-hover:bg-[#5B4BB7] group-hover:text-white transition-colors">
-            <Clipboard size={20} />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-[#172033]">Paste text / notes</div>
-            <div className="text-xs text-[#526071] mt-0.5">
-              Paste WhatsApp chat, email body, SMS, or written note
+          {/* Option 2: Choose File (PDF / Images) */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-4 rounded-xl border border-[#D9DEE7] bg-[#F8F7F3] hover:bg-slate-100 text-left transition-all group flex sm:flex-col items-center sm:items-start gap-3 shadow-xs"
+          >
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#18794E] flex items-center justify-center shrink-0 group-hover:bg-[#18794E] group-hover:text-white transition-colors">
+              <Upload size={20} />
             </div>
-          </div>
-        </button>
+            <div>
+              <div className="text-sm font-bold text-[#172033]">{t.browseFiles}</div>
+              <div className="text-xs text-[#526071] mt-0.5">
+                Select PDF, JPG, PNG, CSV, or TXT
+              </div>
+            </div>
+          </button>
+
+          {/* Option 3: Paste Text / WhatsApp */}
+          <button
+            onClick={() => setPasteModalOpen(true)}
+            className="p-4 rounded-xl border border-[#D9DEE7] bg-[#F8F7F3] hover:bg-slate-100 text-left transition-all group flex sm:flex-col items-center sm:items-start gap-3 shadow-xs"
+          >
+            <div className="w-10 h-10 rounded-xl bg-purple-50 text-[#5B4BB7] flex items-center justify-center shrink-0 group-hover:bg-[#5B4BB7] group-hover:text-white transition-colors">
+              <Clipboard size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-[#172033]">{t.manualTextEntry}</div>
+              <div className="text-xs text-[#526071] mt-0.5">
+                Paste message, email, or written note
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Trust & Provenance Principle Banner */}
+      <div className="mt-5 p-3.5 bg-[#F8F7F3] border border-[#D9DEE7] rounded-xl text-xs text-[#526071] flex items-start gap-2.5">
+        <Shield size={16} className="text-[#18794E] shrink-0 mt-0.5" />
+        <div>
+          <span className="font-semibold text-[#172033]">Source Material Integrity:</span> Adding an artifact preserves it as a citizen-supplied source. It does not create an institutional fact (e.g. proof of submission or payment acceptance) until the actual document contents are reconstructed and verified.
+        </div>
       </div>
 
       {/* Hidden inputs */}
@@ -390,6 +524,21 @@ export function EvidenceCollectionView({
                       <span className="text-[11px] text-[#526071] bg-slate-100 px-2 py-0.5 rounded font-mono">
                         {file.size}
                       </span>
+                      {file.processingStatus === 'extracted' && (
+                        <span className="text-[10px] bg-emerald-50 text-[#18794E] border border-emerald-200 px-1.5 py-0.2 rounded font-semibold">
+                          Text Extracted
+                        </span>
+                      )}
+                      {file.processingStatus === 'binary-ready' && (
+                        <span className="text-[10px] bg-blue-50 text-[#2457C5] border border-blue-200 px-1.5 py-0.2 rounded font-semibold">
+                          Document Binary Ready
+                        </span>
+                      )}
+                      {file.processingStatus === 'ready' && (
+                        <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.2 rounded font-semibold">
+                          Visual File Ready
+                        </span>
+                      )}
                       {file.privacyStatus === 'private' && (
                         <span className="text-[10px] bg-amber-50 text-[#A15C00] border border-amber-200 px-1.5 py-0.2 rounded font-semibold">
                           Kept Private

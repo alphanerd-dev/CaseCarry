@@ -20,7 +20,8 @@ import {
   SAMPLE_UNRESOLVED_ISSUE,
   SAMPLE_PATHWAYS,
 } from '@/lib/demoData';
-import { CaseRecord, CaseEvent, EvidenceFile, UnresolvedIssue, Pathway } from '@/types/case';
+import { CaseRecord, CaseEvent, EvidenceFile, UnresolvedIssue, Pathway, ExtractedCaseFact } from '@/types/case';
+import { PathwayDiscoveryInput, PathwayStatus } from '@/lib/pathways/types';
 import { saveDraftLocally, loadDraftLocally, saveCaseLocally } from '@/lib/storage';
 import { SupportedLanguage } from '@/lib/i18n';
 import { Check, ShieldCheck, Bookmark } from 'lucide-react';
@@ -68,6 +69,8 @@ export default function Home() {
   const [events, setEvents] = useState<CaseEvent[]>([]);
   const [contradictions, setContradictions] = useState<string[]>([]);
   const [missingInformation, setMissingInformation] = useState<string[]>([]);
+  const [verificationReviewed, setVerificationReviewed] = useState<boolean>(false);
+  const [caseCreatedAt, setCaseCreatedAt] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   // Unresolved Issue
   const [unresolved, setUnresolved] = useState<UnresolvedIssue>({
@@ -83,16 +86,39 @@ export default function Home() {
     alreadyTried: '',
   });
 
-  // Pathways
+  // Pathways & Dynamic Discovery
   const [pathways, setPathways] = useState<Pathway[]>(SAMPLE_PATHWAYS);
   const [selectedPathways, setSelectedPathways] = useState<string[]>([]);
+  const [extractedFacts, setExtractedFacts] = useState<ExtractedCaseFact[]>([]);
+  const [safetyAlert, setSafetyAlert] = useState<{
+    isHighRisk: boolean;
+    riskType?: string;
+    advisory: string;
+    emergencyResources?: Array<{ name: string; contact: string; note: string }>;
+  } | undefined>(undefined);
+  const [discoverySource, setDiscoverySource] = useState<'live_research' | 'verified_cache' | 'local_fallback'>('verified_cache');
 
   // Modal State for Source Inspector
   const [viewingSource, setViewingSource] = useState<EvidenceFile | null>(null);
 
+  // Highest unlocked step index reached by user to prevent premature skips while allowing backwards navigation
+  const [maxUnlockedStepIndex, setMaxUnlockedStepIndex] = useState<number>(0);
+
+  const goToStep = useCallback((step: AppStep) => {
+    const idx = STEP_LABELS.findIndex((item) => item.key === step);
+    if (idx >= 0) {
+      setMaxUnlockedStepIndex((prev) => Math.max(prev, idx));
+    }
+    setCurrentStep(step);
+  }, []);
+
   // Auto-Save Draft to Local Storage (IndexedDB with debounce)
   useEffect(() => {
     if (currentStep === 'landing' || isDemoMode) return;
+
+    const establishedDate = events.find(
+      (e) => e.date && e.date !== 'Date not established' && e.date !== 'Unspecified date'
+    )?.date;
 
     const currentRecord: CaseRecord = {
       id: caseId,
@@ -100,8 +126,8 @@ export default function Home() {
       provider: provider || 'Service Provider',
       accountReference: referenceNumber,
       citizenName: citizenName || 'Citizen',
-      createdAt: new Date().toISOString().slice(0, 10),
-      dateOpened: new Date().toISOString().slice(0, 10),
+      createdAt: caseCreatedAt,
+      dateOpened: establishedDate || undefined,
       updatedAt: new Date().toISOString().slice(0, 10),
       firstReportOutcome: selectedOutcome as any,
       events,
@@ -111,6 +137,7 @@ export default function Home() {
       selectedPathways,
       contradictions,
       missingInformation,
+      verificationReviewed,
       isDemo: false,
     };
 
@@ -133,6 +160,8 @@ export default function Home() {
     selectedPathways,
     contradictions,
     missingInformation,
+    verificationReviewed,
+    caseCreatedAt,
     currentStep,
     isDemoMode,
   ]);
@@ -155,7 +184,10 @@ export default function Home() {
     setMissingInformation(SAMPLE_CASE_RECORD.missingInformation || []);
     setUnresolved(SAMPLE_UNRESOLVED_ISSUE);
     setPathways(SAMPLE_PATHWAYS);
-    setSelectedPathways(['ogserc-dispute-resolution', 'fccpc-nigeria']);
+    setSelectedPathways(['ogserc-consumer-dispute', 'fccpc-consumer-protection']);
+    setVerificationReviewed(true);
+    setCaseCreatedAt(SAMPLE_CASE_RECORD.createdAt || new Date().toISOString().slice(0, 10));
+    setMaxUnlockedStepIndex(STEP_LABELS.length - 1);
   };
 
   // Start fresh citizen case
@@ -172,6 +204,8 @@ export default function Home() {
     setEvents([]);
     setContradictions([]);
     setMissingInformation([]);
+    setVerificationReviewed(false);
+    setCaseCreatedAt(new Date().toISOString().slice(0, 10));
     setUnresolved({
       problem: '',
       originalIssue: '',
@@ -186,6 +220,7 @@ export default function Home() {
     });
     setPathways(SAMPLE_PATHWAYS);
     setSelectedPathways([]);
+    setMaxUnlockedStepIndex(0);
     setCurrentStep('entry');
   };
 
@@ -202,11 +237,18 @@ export default function Home() {
     setEvents(savedRecord.events || []);
     setContradictions(savedRecord.contradictions || []);
     setMissingInformation(savedRecord.missingInformation || []);
+    setVerificationReviewed(Boolean(savedRecord.verificationReviewed));
+    setCaseCreatedAt(savedRecord.createdAt || new Date().toISOString().slice(0, 10));
     setUnresolved(savedRecord.unresolved);
     setPathways(savedRecord.pathways || SAMPLE_PATHWAYS);
     setSelectedPathways(savedRecord.selectedPathways || []);
+    setMaxUnlockedStepIndex(STEP_LABELS.length - 1);
     setCurrentStep('bundle');
   };
+
+  const establishedDate = events.find(
+    (e) => e.date && e.date !== 'Date not established' && e.date !== 'Unspecified date'
+  )?.date;
 
   // Full current case record
   const currentCaseRecord: CaseRecord = {
@@ -215,8 +257,8 @@ export default function Home() {
     provider: provider || 'Service Provider',
     accountReference: referenceNumber,
     citizenName: citizenName || 'Citizen',
-    createdAt: new Date().toISOString().slice(0, 10),
-    dateOpened: new Date().toISOString().slice(0, 10),
+    createdAt: caseCreatedAt,
+    dateOpened: establishedDate || undefined,
     updatedAt: new Date().toISOString().slice(0, 10),
     firstReportOutcome: selectedOutcome as any,
     events,
@@ -224,8 +266,12 @@ export default function Home() {
     unresolved,
     pathways,
     selectedPathways,
+    extractedFacts,
+    safetyAlert,
+    pathwayDiscoverySource: discoverySource,
     contradictions,
     missingInformation,
+    verificationReviewed,
     isDemo: isDemoMode,
   };
 
@@ -296,11 +342,66 @@ export default function Home() {
     );
   };
 
-  // Pathway toggle
+  // Pathway handlers
   const handleTogglePathway = (id: string) => {
     setSelectedPathways((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
+  };
+
+  const handleUpdatePathways = (
+    newPathways: Pathway[],
+    newFacts?: ExtractedCaseFact[],
+    discoveryMeta?: any
+  ) => {
+    setPathways(newPathways);
+    if (newFacts) setExtractedFacts(newFacts);
+    if (discoveryMeta?.source) setDiscoverySource(discoveryMeta.source);
+    if (discoveryMeta?.safetyAlert) setSafetyAlert(discoveryMeta.safetyAlert);
+  };
+
+  const handleUpdatePathwayStatus = (
+    id: string,
+    status: PathwayStatus,
+    notes?: string
+  ) => {
+    setPathways((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              status,
+              ...(notes !== undefined ? { previousAttemptNotes: notes } : {}),
+            }
+          : p
+      )
+    );
+  };
+
+  const handleAddCustomPathway = (custom: Pathway) => {
+    setPathways((prev) => [custom, ...prev]);
+    setSelectedPathways((prev) => [...prev, custom.id]);
+  };
+
+  // Construct pathway discovery input from complete verified case record
+  const pathwayDiscoveryInput: PathwayDiscoveryInput = {
+    caseTitle: caseTitle || (provider ? `Case with ${provider}` : 'Unresolved Case Record'),
+    citizenName,
+    provider,
+    referenceNumber,
+    firstReportOutcome: selectedOutcome,
+    userDescription: initialSummary,
+    events,
+    unresolved,
+    evidenceSources: evidenceList.map((e) => ({
+      id: e.id,
+      title: e.title,
+      filename: e.filename,
+      type: e.type,
+      textSnippet: e.extractedText || e.fullSnippet || e.contentSummary,
+    })),
+    contradictions,
+    missingInformation,
   };
 
   // Preserve privately to IndexedDB
@@ -339,33 +440,33 @@ export default function Home() {
 
       {/* Workflow Stepper Navigation */}
       {showWorkflowStepper && (
-        <div className="bg-white border-b border-[#D9DEE7] py-2 px-4 sm:px-6 overflow-x-auto print:hidden">
-          <div className="max-w-5xl mx-auto flex items-center justify-between min-w-[620px] gap-2 text-xs">
+        <div className="bg-white border-b border-[#D9DEE7] py-2.5 px-3 sm:px-6 overflow-x-auto print:hidden">
+          <div className="max-w-5xl mx-auto flex items-center justify-start sm:justify-between min-w-max gap-1.5 sm:gap-2 text-xs">
             {STEP_LABELS.map((s, idx) => {
               const isCurrent = currentStep === s.key;
               const currentIndex = STEP_LABELS.findIndex((item) => item.key === currentStep);
               const isPassed = idx < currentIndex;
 
-              // Allow navigation to previous steps or current step
-              const canNavigate = idx <= currentIndex || (idx === currentIndex + 1 && (evidenceList.length > 0 || isDemoMode));
+              // Allow navigation to any unlocked step reached by the citizen
+              const canNavigate = idx <= maxUnlockedStepIndex;
 
               return (
                 <div key={s.key} className="flex items-center gap-1.5 shrink-0">
                   <button
                     disabled={!canNavigate}
-                    onClick={() => setCurrentStep(s.key)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                    onClick={() => goToStep(s.key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors min-h-[34px] ${
                       isCurrent
-                        ? 'bg-[#2457C5] text-white'
+                        ? 'bg-[#2457C5] text-white shadow-xs'
                         : isPassed
                         ? 'text-[#18794E] hover:bg-emerald-50'
                         : canNavigate
-                        ? 'text-[#526071] hover:text-[#172033]'
-                        : 'text-slate-300 cursor-not-allowed'
+                        ? 'text-[#526071] hover:text-[#172033] hover:bg-slate-50'
+                        : 'text-slate-300 cursor-not-allowed opacity-60'
                     }`}
                   >
                     <span
-                      className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
+                      className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold shrink-0 ${
                         isCurrent
                           ? 'bg-white text-[#2457C5]'
                           : isPassed
@@ -375,10 +476,10 @@ export default function Home() {
                     >
                       {isPassed ? <Check size={10} /> : s.number}
                     </span>
-                    <span>{s.label}</span>
+                    <span className="whitespace-nowrap">{s.label}</span>
                   </button>
                   {idx < STEP_LABELS.length - 1 && (
-                    <span className="text-slate-300">›</span>
+                    <span className="text-slate-300 select-none">›</span>
                   )}
                 </div>
               );
@@ -394,7 +495,7 @@ export default function Home() {
             onStartCase={handleStartFreshCase}
             onExploreSampleCase={() => {
               handlePreloadDemo();
-              setCurrentStep('reconstruction');
+              goToStep('reconstruction');
             }}
           />
         )}
@@ -414,8 +515,8 @@ export default function Home() {
                 setCaseTitle(`Matter with ${prov}`);
               }
             }}
-            onContinue={() => setCurrentStep('evidence')}
-            onBack={() => setCurrentStep('landing')}
+            onContinue={() => goToStep('evidence')}
+            onBack={() => goToStep('landing')}
             isDemoMode={isDemoMode}
             onSwitchToReal={handleStartFreshCase}
           />
@@ -431,10 +532,11 @@ export default function Home() {
             onLoadDemoFiles={() => {
               handlePreloadDemo();
             }}
-            onContinue={() => setCurrentStep('reconstruction')}
-            onBack={() => setCurrentStep('entry')}
+            onContinue={() => goToStep('reconstruction')}
+            onBack={() => goToStep('entry')}
             lowBandwidth={lowBandwidth}
             isDemoMode={isDemoMode}
+            currentLanguage={currentLanguage}
           />
         )}
 
@@ -452,9 +554,10 @@ export default function Home() {
             onUpdateReconstruction={handleUpdateReconstruction}
             onAddCustomEvent={handleAddCustomEvent}
             onViewSource={(file) => setViewingSource(file)}
-            onContinue={() => setCurrentStep('verification')}
-            onBack={() => setCurrentStep('evidence')}
+            onContinue={() => goToStep('verification')}
+            onBack={() => goToStep('evidence')}
             isDemoMode={isDemoMode}
+            currentLanguage={currentLanguage}
           />
         )}
 
@@ -466,9 +569,12 @@ export default function Home() {
             onDeleteEvent={handleDeleteEvent}
             onAddCustomEvent={handleAddCustomEvent}
             onVerifyAllSourceBacked={handleVerifyAllSourceBacked}
-            onContinue={() => setCurrentStep('unresolved')}
-            onBack={() => setCurrentStep('reconstruction')}
+            onContinue={() => goToStep('unresolved')}
+            onBack={() => goToStep('reconstruction')}
             isDemoMode={isDemoMode}
+            verificationReviewed={verificationReviewed}
+            onToggleVerificationReviewed={(val) => setVerificationReviewed(val)}
+            currentLanguage={currentLanguage}
           />
         )}
 
@@ -476,9 +582,10 @@ export default function Home() {
           <UnresolvedIssueView
             unresolved={unresolved}
             onUpdateUnresolved={setUnresolved}
-            onContinue={() => setCurrentStep('pathway')}
-            onBack={() => setCurrentStep('verification')}
+            onContinue={() => goToStep('pathway')}
+            onBack={() => goToStep('verification')}
             isDemoMode={isDemoMode}
+            currentLanguage={currentLanguage}
           />
         )}
 
@@ -486,11 +593,19 @@ export default function Home() {
           <PathwayGuidanceView
             pathways={pathways}
             selectedPathways={selectedPathways}
+            extractedFacts={extractedFacts}
+            safetyAlert={safetyAlert}
+            discoverySource={discoverySource}
+            caseInput={pathwayDiscoveryInput}
+            onUpdatePathways={handleUpdatePathways}
             onTogglePathway={handleTogglePathway}
-            onContinue={() => setCurrentStep('privacy')}
-            onSkip={() => setCurrentStep('privacy')}
-            onBack={() => setCurrentStep('unresolved')}
+            onUpdatePathwayStatus={handleUpdatePathwayStatus}
+            onAddCustomPathway={handleAddCustomPathway}
+            onContinue={() => goToStep('privacy')}
+            onSkip={() => goToStep('privacy')}
+            onBack={() => goToStep('unresolved')}
             isDemoMode={isDemoMode}
+            currentLanguage={currentLanguage}
           />
         )}
 
@@ -500,26 +615,30 @@ export default function Home() {
             onUpdateEvidencePrivacy={handleUpdateEvidencePrivacy}
             onRemoveEvidence={handleRemoveEvidence}
             onViewSource={(file) => setViewingSource(file)}
-            onApproveAndCreateBundle={() => setCurrentStep('bundle')}
-            onBack={() => setCurrentStep('pathway')}
+            onApproveAndCreateBundle={() => goToStep('bundle')}
+            onBack={() => goToStep('pathway')}
+            currentLanguage={currentLanguage}
           />
         )}
 
         {currentStep === 'bundle' && (
           <CarryForwardBundleView
             caseData={currentCaseRecord}
-            onContinueToExport={() => setCurrentStep('export')}
-            onBack={() => setCurrentStep('privacy')}
+            onContinueToExport={() => goToStep('export')}
+            onBack={() => goToStep('privacy')}
+            currentLanguage={currentLanguage}
           />
         )}
 
         {currentStep === 'export' && (
           <ExportView
             caseData={currentCaseRecord}
-            onBackToBundle={() => setCurrentStep('bundle')}
+            onBackToBundle={() => goToStep('bundle')}
             onStartAnotherCase={handleStartFreshCase}
-            onViewCase={() => setCurrentStep('bundle')}
+            onViewCase={() => goToStep('bundle')}
             onPreservePrivately={handlePreservePrivately}
+            onGoToVerification={() => goToStep('verification')}
+            currentLanguage={currentLanguage}
           />
         )}
       </main>

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { CaseEvent, EvidenceFile, ProvenanceType } from '@/types/case';
 import { ProvenanceBadge } from './ProvenanceBadge';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 
 interface VerificationViewProps {
   events: CaseEvent[];
@@ -30,6 +31,9 @@ interface VerificationViewProps {
   onContinue: () => void;
   onBack: () => void;
   isDemoMode?: boolean;
+  verificationReviewed?: boolean;
+  onToggleVerificationReviewed?: (reviewed: boolean) => void;
+  currentLanguage?: SupportedLanguage;
 }
 
 export function VerificationView({
@@ -42,6 +46,9 @@ export function VerificationView({
   onContinue,
   onBack,
   isDemoMode,
+  verificationReviewed = false,
+  onToggleVerificationReviewed,
+  currentLanguage = 'en',
 }: VerificationViewProps) {
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -56,6 +63,8 @@ export function VerificationView({
     displayDate: '',
     provenance: 'source-backed',
   });
+
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -125,13 +134,16 @@ export function VerificationView({
 
     const newEv: CaseEvent = {
       id: `ev-manual-${Date.now()}`,
-      date: newDate || 'Date not specified',
-      displayDate: newDate || 'Date not specified',
-      datePrecision: newDate ? 'exact' : 'unspecified',
+      date: newDate.trim() || 'Date not established',
+      displayDate: newDate.trim() || 'Date not established',
+      datePrecision: newDate.trim() ? 'exact' : 'not-established',
       title: newTitle,
       description: newDesc || newTitle,
       provenance: newProv,
-      provenanceLabel: newProv === 'user-reported' ? 'You reported this' : 'Source-backed',
+      provenanceLabel:
+        newProv === 'USER_REPORTED' || newProv === 'user-reported'
+          ? 'You reported this'
+          : 'Source-backed',
       sourceIds: [],
       sourceNames: ['Citizen Statement'],
       verifiedByUser: true,
@@ -155,24 +167,24 @@ export function VerificationView({
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] mb-6 p-1 rounded-md transition-colors"
       >
         <ArrowLeft size={16} />
-        <span>Back to Reconstruction</span>
+        <span>{t.back}</span>
       </button>
 
       {/* Progress pill */}
       <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#2457C5] text-xs font-semibold border border-blue-100">
         <span>Step 4 of 8</span>
         <span>•</span>
-        <span>Citizen Verification</span>
+        <span>{t.stepVerification}</span>
       </div>
 
       {/* Heading */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
-            Check your case record
+            {t.verifyTitle}
           </h1>
           <p className="text-sm sm:text-base text-[#526071] mt-1">
-            CaseCarry created this draft from your information. Confirm or edit each item before carrying it forward.
+            {t.verifySubtitle}
           </p>
         </div>
       </div>
@@ -289,11 +301,11 @@ export function VerificationView({
                         }
                         className="w-full px-3 py-1.5 border border-[#D9DEE7] rounded-lg text-xs sm:text-sm text-[#172033] focus:border-[#2457C5] focus:outline-hidden bg-white"
                       >
-                        <option value="source-backed">Source-backed</option>
-                        <option value="user-reported">You reported this</option>
-                        <option value="inferred">CaseCarry inferred</option>
-                        <option value="needs-review">Needs review</option>
-                        <option value="conflict">Sources conflict</option>
+                        <option value="SOURCE_BACKED">Source-backed (from document/receipt)</option>
+                        <option value="USER_REPORTED">You reported this (personal statement)</option>
+                        <option value="AI_INFERRED">CaseCarry inferred (deduced from evidence)</option>
+                        <option value="NEEDS_REVIEW">Needs review (uncertain date or fact)</option>
+                        <option value="SOURCE_CONFLICT">Sources conflict (contradiction between records)</option>
                       </select>
                     </div>
                   </div>
@@ -429,20 +441,46 @@ export function VerificationView({
         })}
       </div>
 
+      {/* Explicit Citizen Verification Gate Acknowledgment */}
+      <div
+        className={`mt-8 p-5 rounded-2xl border transition-all ${
+          verificationReviewed
+            ? 'bg-emerald-50/70 border-emerald-300'
+            : 'bg-white border-[#D9DEE7] shadow-xs'
+        }`}
+      >
+        <label className="flex items-start gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={verificationReviewed}
+            onChange={(e) => onToggleVerificationReviewed?.(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2457C5] focus:ring-[#2457C5]"
+          />
+          <div>
+            <span className="text-sm font-bold text-[#172033] block">
+              I have reviewed this case record and confirmed the facts within my knowledge.
+            </span>
+            <p className="text-xs text-[#526071] mt-1 leading-relaxed">
+              Every important claim in this record will be preserved with its audit source. Exporting or carrying this bundle forward requires explicit review by you as the citizen complainant.
+            </p>
+          </div>
+        </label>
+      </div>
+
       {/* Navigation Footer */}
-      <div className="mt-10 pt-6 border-t border-[#D9DEE7] flex items-center justify-between">
+      <div className="mt-8 pt-6 border-t border-[#D9DEE7] flex items-center justify-between">
         <button
           onClick={onBack}
           className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
         >
-          Back to Reconstruction
+          {t.back}
         </button>
 
         <button
           onClick={onContinue}
           className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-sm font-semibold rounded-xl shadow-xs transition-all"
         >
-          <span>Continue to Unresolved Issue</span>
+          <span>{t.continue}</span>
           <ArrowRight size={16} />
         </button>
       </div>

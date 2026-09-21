@@ -18,28 +18,26 @@ import {
 } from 'lucide-react';
 import { CaseRecord } from '@/types/case';
 import { ProvenanceBadge } from './ProvenanceBadge';
+import { redactEvidenceFile } from '@/lib/redaction';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 
 interface CarryForwardBundleViewProps {
   caseData: CaseRecord;
   onContinueToExport: () => void;
   onBack: () => void;
+  currentLanguage?: SupportedLanguage;
 }
 
 export function CarryForwardBundleView({
   caseData,
   onContinueToExport,
   onBack,
+  currentLanguage = 'en',
 }: CarryForwardBundleViewProps) {
-  const includedEvidence = caseData.evidence.filter((e) => e.privacyStatus !== 'private');
+  const includedEvidence = (caseData.evidence || []).filter((e) => e.privacyStatus !== 'private');
+  const privateEvidence = (caseData.evidence || []).filter((e) => e.privacyStatus === 'private');
 
-  // Redact helper: masks sensitive patterns (e.g. 10+ digits, emails, phone numbers)
-  const applyRedaction = (text: string, isRedacted: boolean) => {
-    if (!isRedacted || !text) return text;
-    return text
-      .replace(/(\+?234|0)[789][01]\d{8}/g, '[PHONE REDACTED]')
-      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL REDACTED]')
-      .replace(/\b\d{8,12}\b/g, (match) => `${match.slice(0, 3)}***${match.slice(-2)}`);
-  };
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
   const handlePrint = () => {
     window.print();
@@ -53,7 +51,7 @@ export function CarryForwardBundleView({
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] mb-6 p-1 rounded-md transition-colors print:hidden"
       >
         <ArrowLeft size={16} />
-        <span>Back to Privacy Review</span>
+        <span>{t.back}</span>
       </button>
 
       {/* Progress pill & Action button */}
@@ -64,27 +62,30 @@ export function CarryForwardBundleView({
             <span>Case Verified & Approved by Citizen</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
-            Your case is ready to carry forward
+            {t.bundleTitle}
           </h1>
           <p className="text-sm text-[#526071] mt-1">
-            This portable, recipient-neutral bundle works on any device or printed paper. No special app or software needed by the recipient.
+            {t.bundleSubtitle}
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <button
+            id="print-bundle-top-btn"
             onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 text-xs font-semibold text-[#172033] inline-flex items-center gap-1.5 shadow-xs"
+            className="px-3.5 py-2 rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 text-xs font-semibold text-[#172033] inline-flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            title="Open browser print dialogue to print or save as PDF"
           >
-            <Printer size={15} />
-            <span>Print View</span>
+            <Printer size={15} className="text-[#2457C5]" />
+            <span>{t.printPaperCopy}</span>
           </button>
 
           <button
+            id="continue-to-export-top-btn"
             onClick={onContinueToExport}
-            className="px-4 py-2 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-xs font-semibold rounded-xl shadow-xs inline-flex items-center gap-1.5"
+            className="px-4 py-2 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-xs font-semibold rounded-xl shadow-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <span>Export & Save Bundle</span>
+            <span>{t.exportBundle}</span>
             <ArrowRight size={15} />
           </button>
         </div>
@@ -305,6 +306,89 @@ export function CarryForwardBundleView({
                 </ul>
               </div>
             )}
+            {privateEvidence.length > 0 && (
+              <div className="mt-2.5 p-2.5 bg-[#F8F7F3] border border-[#D9DEE7] rounded-lg text-[11px] text-[#526071] flex items-center justify-between">
+                <span>{privateEvidence.length} document(s) retained privately by citizen on local device.</span>
+                <span className="font-semibold text-amber-800">Excluded from transmission</span>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* 8. Potential Next Pathways (Rule 22) */}
+        {caseData.pathways && caseData.selectedPathways && caseData.selectedPathways.length > 0 && (
+          <section className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-[#526071] flex items-center justify-between">
+              <span>8. Potential Next Pathways</span>
+              <span className="text-xs text-[#2457C5] font-normal lowercase">
+                {caseData.selectedPathways.length} referenced by citizen
+              </span>
+            </h3>
+
+            <div className="p-3.5 bg-blue-50/50 border border-blue-100 rounded-xl text-xs text-[#2457C5]">
+              <strong>Standard Attribution:</strong> CaseCarry identified these as potentially relevant pathways based on the case information available at the time of review. CaseCarry did not determine legal rights conclusively or guarantee eligibility.
+            </div>
+
+            <div className="space-y-3">
+              {caseData.pathways
+                .filter((p) => caseData.selectedPathways.includes(p.id))
+                .map((path) => (
+                  <div
+                    key={path.id}
+                    className="p-4 bg-white border border-[#D9DEE7] rounded-xl space-y-3 text-xs"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-sm text-[#172033]">{path.name}</div>
+                        <div className="text-[11px] text-[#526071] mt-0.5">
+                          Authority: <strong className="text-[#172033]">{path.organization}</strong> • Jurisdiction: {path.jurisdiction}
+                        </div>
+                      </div>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-[#2457C5] font-semibold self-start shrink-0">
+                        Referenced in Bundle
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-[#F8F7F3] rounded-lg border border-slate-200 space-y-1">
+                      <span className="font-bold text-[#526071] block">Why It May Be Relevant:</span>
+                      <p className="text-[#172033] leading-relaxed">{path.whyRelevant}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                      <div>
+                        <span className="font-bold text-[#526071] block">Required Documents:</span>
+                        <ul className="list-disc list-inside text-[#172033] mt-0.5 space-y-0.5">
+                          {path.requiredDocuments.map((doc, idx) => (
+                            <li key={idx}>{doc}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <span className="font-bold text-[#526071] block">Official Procedural Source:</span>
+                        <p className="text-[#172033] mt-0.5 font-medium">{path.officialSource}</p>
+                        <span className="text-[11px] text-slate-500 block">
+                          Checked Date: {path.lastCheckedDate}
+                        </span>
+                        {path.sourceUrl && (
+                          <span className="text-[11px] text-[#2457C5] break-all block mt-0.5">
+                            {path.sourceUrl}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {((path.uncertainties && path.uncertainties.length > 0) || path.whatWeDontKnow) && (
+                      <div className="p-2.5 bg-amber-50/50 border border-amber-200 rounded-lg text-[11px] text-amber-900 space-y-0.5">
+                        <span className="font-bold text-amber-950 block">Uncertainties / What Requires Verification:</span>
+                        <p className="text-amber-950">
+                          {path.uncertainties ? path.uncertainties.join('. ') : path.whatWeDontKnow}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
           </section>
         )}
 
@@ -320,21 +404,35 @@ export function CarryForwardBundleView({
       </div>
 
       {/* Bottom Action Bar */}
-      <div className="mt-8 pt-4 border-t border-[#D9DEE7] flex items-center justify-between gap-3 print:hidden">
+      <div className="mt-8 pt-4 border-t border-[#D9DEE7] flex flex-col sm:flex-row items-center justify-between gap-3 print:hidden">
         <button
+          id="back-from-bundle-bottom-btn"
           onClick={onBack}
-          className="px-4 py-2.5 rounded-xl border border-[#D9DEE7] text-sm font-semibold text-[#526071] hover:text-[#172033] bg-white hover:bg-slate-50 transition-colors"
+          className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[#D9DEE7] text-sm font-semibold text-[#526071] hover:text-[#172033] bg-white hover:bg-slate-50 transition-colors cursor-pointer"
         >
           Back
         </button>
 
-        <button
-          onClick={onContinueToExport}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs transition-colors"
-        >
-          <span>Export Case Bundle</span>
-          <ArrowRight size={16} />
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <button
+            id="print-bundle-bottom-btn"
+            onClick={handlePrint}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 text-sm font-semibold text-[#172033] inline-flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+            title="Open browser print dialogue to print or save as PDF"
+          >
+            <Printer size={16} className="text-[#2457C5]" />
+            <span>Print Paper Copy</span>
+          </button>
+
+          <button
+            id="continue-to-export-bottom-btn"
+            onClick={onContinueToExport}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs transition-colors cursor-pointer"
+          >
+            <span>Export Case Bundle</span>
+            <ArrowRight size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );

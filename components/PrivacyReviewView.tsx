@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { EvidenceFile } from '@/types/case';
 import { ProvenanceBadge } from './ProvenanceBadge';
+import { redactEvidenceFile } from '@/lib/redaction';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 
 interface PrivacyReviewViewProps {
   evidenceList: EvidenceFile[];
@@ -24,6 +26,7 @@ interface PrivacyReviewViewProps {
   onViewSource: (file: EvidenceFile) => void;
   onApproveAndCreateBundle: () => void;
   onBack: () => void;
+  currentLanguage?: SupportedLanguage;
 }
 
 export function PrivacyReviewView({
@@ -33,8 +36,11 @@ export function PrivacyReviewView({
   onViewSource,
   onApproveAndCreateBundle,
   onBack,
+  currentLanguage = 'en',
 }: PrivacyReviewViewProps) {
-  const [redactionNotices, setRedactionNotices] = useState<Record<string, boolean>>({});
+  const [previewRedactedId, setPreviewRedactedId] = useState<string | null>(null);
+
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
   const includedCount = evidenceList.filter((e) => e.privacyStatus === 'included').length;
   const privateCount = evidenceList.filter((e) => e.privacyStatus === 'private').length;
@@ -59,20 +65,22 @@ export function PrivacyReviewView({
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] mb-6 p-1 rounded-md transition-colors"
       >
         <ArrowLeft size={16} />
-        <span>Go back and edit</span>
+        <span>{t.back}</span>
       </button>
 
       {/* Progress pill */}
       <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#2457C5] text-xs font-semibold border border-blue-100">
-        <span>Privacy & Safety Control</span>
+        <span>Step 7 of 8</span>
+        <span>•</span>
+        <span>{t.stepPrivacy}</span>
       </div>
 
       {/* Heading */}
       <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
-        Review what you’re sharing
+        {t.privacyTitle}
       </h1>
       <p className="text-sm sm:text-base text-[#526071] mt-2 leading-relaxed">
-        Your documents may contain phone numbers, home addresses, or transaction accounts. Review each artifact and select whether to include it in full, keep it private, or redact sensitive fields.
+        {t.privacySubtitle}
       </p>
 
       {/* Prominent Trust Banner */}
@@ -150,22 +158,56 @@ export function PrivacyReviewView({
               </div>
 
               {/* Sensitive fields indicator */}
-              <div className="text-xs text-[#526071] bg-[#F8F7F3] p-2.5 rounded-lg border border-[#D9DEE7]/70 flex items-center justify-between">
-                <span>
-                  {doc.type === 'receipt'
-                    ? 'Contains: Account Number 0456789123, USSD Gateway Ref'
-                    : doc.type === 'email'
-                    ? 'Contains: Citizen Email & Phone Number 0803 456 7890'
-                    : doc.type === 'pdf'
-                    ? 'Contains: Home Address: 12, Alagbon Close, Abeokuta'
-                    : 'Verified citizen artifact'}
-                </span>
-                <button
-                  onClick={() => onViewSource(doc)}
-                  className="text-xs text-[#2457C5] font-semibold hover:underline shrink-0 ml-2"
-                >
-                  View Details
-                </button>
+              <div className="text-xs text-[#526071] bg-[#F8F7F3] p-2.5 rounded-lg border border-[#D9DEE7]/70 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span>
+                    {isPrivate ? (
+                      <strong className="text-amber-800">Kept private on this device.</strong>
+                    ) : isRedacted ? (
+                      <strong className="text-slate-800">Redacted: Sensitive fields masked with asterisks.</strong>
+                    ) : (
+                      <span>
+                        {doc.type === 'receipt'
+                          ? 'Contains: Account Number 0456789123, USSD Gateway Ref'
+                          : doc.type === 'email'
+                          ? 'Contains: Citizen Email & Phone Number 0803 456 7890'
+                          : doc.type === 'pdf'
+                          ? 'Contains: Home Address: 12, Alagbon Close, Abeokuta'
+                          : 'Verified citizen artifact'}
+                      </span>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {isRedacted && (
+                      <button
+                        onClick={() =>
+                          setPreviewRedactedId(previewRedactedId === doc.id ? null : doc.id)
+                        }
+                        className="text-xs text-slate-700 font-semibold hover:underline"
+                      >
+                        {previewRedactedId === doc.id ? 'Hide Masked Text' : 'Show Masked Text'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onViewSource(doc)}
+                      className="text-xs text-[#2457C5] font-semibold hover:underline shrink-0 ml-2"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+
+                {isPrivate && (
+                  <p className="text-[11px] text-amber-700">
+                    This file remains safely stored in your browser storage but will not be transmitted in exported bundles.
+                  </p>
+                )}
+
+                {isRedacted && previewRedactedId === doc.id && (
+                  <div className="mt-2 p-2 bg-white rounded border border-slate-200 font-mono text-[11px] text-slate-700 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {redactEvidenceFile(doc).extractedText || redactEvidenceFile(doc).contentSummary}
+                  </div>
+                )}
               </div>
 
               {/* 4 Privacy Action Controls (Section 19) */}
@@ -231,14 +273,14 @@ export function PrivacyReviewView({
           onClick={onBack}
           className="px-4 py-2.5 rounded-xl border border-[#D9DEE7] text-sm font-semibold text-[#526071] hover:text-[#172033] bg-white hover:bg-slate-50 transition-colors text-center"
         >
-          Go back and edit
+          {t.back}
         </button>
 
         <button
           onClick={onApproveAndCreateBundle}
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs transition-colors cursor-pointer"
         >
-          <span>Approve & create bundle</span>
+          <span>{t.approveAndCreateBundle}</span>
           <ArrowRight size={16} />
         </button>
       </div>

@@ -16,9 +16,12 @@ import {
   RotateCcw,
   Eye,
   Bookmark,
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 import { CaseRecord } from '@/types/case';
+import { redactEvidenceFile } from '@/lib/redaction';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 
 interface ExportViewProps {
   caseData: CaseRecord;
@@ -26,6 +29,8 @@ interface ExportViewProps {
   onStartAnotherCase: () => void;
   onViewCase: () => void;
   onPreservePrivately?: () => void;
+  onGoToVerification?: () => void;
+  currentLanguage?: SupportedLanguage;
 }
 
 export function ExportView({
@@ -34,13 +39,34 @@ export function ExportView({
   onStartAnotherCase,
   onViewCase,
   onPreservePrivately,
+  onGoToVerification,
+  currentLanguage = 'en',
 }: ExportViewProps) {
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   const [preservedNotice, setPreservedNotice] = useState(false);
 
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
+
+  const isBlocked = !caseData.verificationReviewed;
+
   // Generate plain text / JSON record for instant download
   const handleDownloadJSON = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(caseData, null, 2));
+    if (isBlocked) {
+      setDownloadSuccess('CaseCarry cannot export an unreviewed case record. Review and verify the timeline events before carrying this case forward.');
+      return;
+    }
+
+    const sanitizedEvidence = (caseData.evidence || [])
+      .filter((e) => e.privacyStatus !== 'private')
+      .map((e) => (e.privacyStatus === 'redacted' ? redactEvidenceFile(e) : e));
+
+    const exportPayload = {
+      ...caseData,
+      evidence: sanitizedEvidence,
+      retainedPrivateDocumentsCount: (caseData.evidence || []).filter((e) => e.privacyStatus === 'private').length,
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
     downloadAnchor.setAttribute('download', `CaseCarry_${caseData.id}_Record.json`);
@@ -51,6 +77,10 @@ export function ExportView({
   };
 
   const handleDownloadSummaryDoc = () => {
+    if (isBlocked) {
+      setDownloadSuccess('CaseCarry cannot export an unreviewed case record. Review and verify the timeline events before carrying this case forward.');
+      return;
+    }
     const contradictionSection =
       caseData.contradictions && caseData.contradictions.length > 0
         ? caseData.contradictions.map((c, i) => `• ${c}`).join('\n')
@@ -155,9 +185,13 @@ Citizen-controlled case continuity.
     setDownloadSuccess('Portable Case Bundle text file downloaded.');
   };
 
-  const handlePrintPDF = () => {
+  const handlePrintPaperCopy = () => {
+    if (isBlocked) {
+      setDownloadSuccess('CaseCarry cannot export an unreviewed case record. Review and verify the timeline events before carrying this case forward.');
+      return;
+    }
     window.print();
-    setDownloadSuccess('Print / Save PDF dialog opened.');
+    setDownloadSuccess('Browser print dialogue opened. You can print a physical paper copy or save as PDF.');
   };
 
   const handlePreserve = () => {
@@ -170,14 +204,30 @@ Citizen-controlled case continuity.
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-      {/* Back button */}
-      <button
-        onClick={onBackToBundle}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] mb-6 p-1 rounded-md transition-colors print:hidden"
-      >
-        <ArrowLeft size={16} />
-        <span>Back to Bundle Preview</span>
-      </button>
+      {/* Top Navigation & Quick Print */}
+      <div className="flex items-center justify-between gap-3 mb-6 print:hidden">
+        <button
+          id="back-to-bundle-top-btn"
+          onClick={onBackToBundle}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#526071] hover:text-[#172033] p-1 rounded-md transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={16} />
+          <span>Back to Bundle Preview</span>
+        </button>
+
+        <button
+          id="export-quick-print-btn"
+          onClick={handlePrintPaperCopy}
+          disabled={isBlocked}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 text-xs font-semibold text-[#172033] shadow-xs transition-colors cursor-pointer ${
+            isBlocked ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          title="Print a paper copy or save as PDF"
+        >
+          <Printer size={15} className="text-[#2457C5]" />
+          <span>Print Paper Copy</span>
+        </button>
+      </div>
 
       {/* Heading */}
       <div className="mb-6">
@@ -189,6 +239,31 @@ Citizen-controlled case continuity.
         </p>
       </div>
 
+      {/* Verification Gate Barrier if Not Reviewed */}
+      {isBlocked && (
+        <div className="mb-6 p-5 bg-amber-50 border border-amber-300 rounded-2xl space-y-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="text-amber-700 shrink-0 mt-0.5" size={20} />
+            <div>
+              <h2 className="text-sm font-bold text-amber-900">
+                Verification Review Required Before Export
+              </h2>
+              <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                CaseCarry cannot export an unreviewed case record. Review and verify the timeline events before carrying this case forward.
+              </p>
+            </div>
+          </div>
+          <div className="pt-1 flex items-center gap-3">
+            <button
+              onClick={onGoToVerification || onBackToBundle}
+              className="px-4 py-2 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-xs font-semibold rounded-xl shadow-xs inline-flex items-center gap-2"
+            >
+              <span>Return to Step 4: Verification</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Download notification if triggered */}
       {downloadSuccess && (
         <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-xs text-[#18794E] font-medium animate-in fade-in">
@@ -198,31 +273,32 @@ Citizen-controlled case continuity.
       )}
 
       {/* Export Options (Section 20) */}
-      <div className="space-y-3.5">
-        {/* Option 1: Download PDF */}
+      <div className={`space-y-3.5 ${isBlocked ? 'opacity-50 pointer-events-none select-none' : ''}`}>
+        {/* Option 1: Print Paper Copy / Save PDF */}
         <div
-          onClick={handlePrintPDF}
+          id="export-print-copy-card"
+          onClick={handlePrintPaperCopy}
           className="p-5 bg-white border border-[#2457C5]/40 hover:border-[#2457C5] rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-between gap-4 group"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#2457C5] flex items-center justify-center group-hover:bg-[#2457C5] group-hover:text-white transition-colors shrink-0">
-              <FileText size={22} />
+              <Printer size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-[#172033]">
-                  Save / Download PDF
+                  Print Paper Copy (Browser Print)
                 </h3>
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-blue-100 text-[#2457C5]">
                   Recommended
                 </span>
               </div>
               <p className="text-xs text-[#526071] mt-0.5">
-                Formatted printable PDF with chronology, evidence citations, and official header.
+                Opens the browser print dialogue to generate a physical paper copy or save as PDF.
               </p>
             </div>
           </div>
-          <Download size={18} className="text-[#2457C5] shrink-0" />
+          <Printer size={18} className="text-[#2457C5] shrink-0" />
         </div>
 
         {/* Option 2: Download Text Bundle */}
