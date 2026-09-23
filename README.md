@@ -434,7 +434,7 @@ CaseCarry/
 
 ### Requirements
 
-- Node.js
+- Node.js >= 20.9.0
 - npm
 
 ### Install
