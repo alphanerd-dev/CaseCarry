@@ -131,7 +131,7 @@ export function PathwayGuidanceView({
       await new Promise((r) => setTimeout(r, 300));
 
       // Map candidates to application Pathway format
-      const convertedPathways: Pathway[] = result.candidatePathways.map((cand) => ({
+      const convertedPathways: Pathway[] = (result.candidatePathways || []).map((cand) => ({
         id: cand.id,
         name: cand.name,
         organization: cand.organization,
@@ -139,25 +139,25 @@ export function PathwayGuidanceView({
         pathwayType: cand.pathwayType,
         whyRelevant: cand.whyRelevant,
         relevanceReason: cand.relevanceReason,
-        supportingCaseFacts: cand.supportingCaseFacts,
+        supportingCaseFacts: cand.supportingCaseFacts || [],
         eligibility: cand.eligibility,
-        requiredDocuments: cand.requiredDocuments,
-        steps: cand.steps,
+        requiredDocuments: cand.requiredDocuments || [],
+        steps: cand.steps || [],
         officialSource: cand.officialSourceTitle,
         sourceUrl: cand.officialSourceUrl,
         lastCheckedDate: cand.sourceCheckedAt,
         warning: cand.warnings?.[0] || 'Confirm current requirements before relying on this guidance.',
-        warnings: cand.warnings,
-        uncertainties: cand.uncertainties,
-        whatWeDontKnow: cand.uncertainties?.join('. '),
-        confidence: cand.confidence,
-        confidenceExplanation: cand.confidenceExplanation,
-        status: cand.status,
+        warnings: cand.warnings || [],
+        uncertainties: cand.uncertainties || [],
+        whatWeDontKnow: cand.uncertainties?.join('. ') || '',
+        confidence: cand.confidence || 'medium',
+        confidenceExplanation: cand.confidenceExplanation || '',
+        status: cand.status || 'POTENTIAL',
         isStale: cand.isStale,
         staleNotice: cand.staleNotice,
       }));
 
-      const convertedFacts: ExtractedCaseFact[] = result.extractedFacts.map((f) => ({
+      const convertedFacts: ExtractedCaseFact[] = (result.extractedFacts || []).map((f) => ({
         field: f.field,
         label: f.label,
         value: f.value,
@@ -619,7 +619,7 @@ export function PathwayGuidanceView({
                       Documents to Carry
                     </span>
                     <ul className="list-disc list-inside text-[#172033] space-y-0.5">
-                      {path.requiredDocuments.map((doc, i) => (
+                      {(path.requiredDocuments || []).map((doc, i) => (
                         <li key={i}>{doc}</li>
                       ))}
                     </ul>

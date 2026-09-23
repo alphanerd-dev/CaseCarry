@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { CaseRecord } from '@/types/case';
 import { listLocalCases, deleteLocalCase } from '@/lib/storage';
-import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
+import { SupportedLanguage, SUPPORTED_LANGUAGES, TRANSLATIONS } from '@/lib/i18n';
 
 interface HeaderProps {
   currentView?: string;
@@ -140,98 +140,65 @@ export function Header({
             {/* Multilingual Switcher */}
             <div className="relative">
               <button
+                id="language-switcher-btn"
                 onClick={() => setLangNoticeOpen(!langNoticeOpen)}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[#D9DEE7] bg-white text-[11px] text-[#526071] hover:text-[#172033]"
-                title="Language selection"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[#D9DEE7] bg-white text-[11px] text-[#526071] hover:text-[#172033] cursor-pointer transition-colors shadow-2xs"
+                title="Select language / Zabi harshe / Yan asusu / Yan èdè / Select language"
+                aria-label="Language Selector"
+                aria-expanded={langNoticeOpen}
               >
-                <Globe size={11} />
-                <span className="uppercase font-bold">{currentLanguage}</span>
+                <Globe size={11} className="text-[#2457C5]" />
+                <span className="font-semibold text-[#172033]">
+                  {SUPPORTED_LANGUAGES.find((l) => l.code === currentLanguage)?.name || 'Language'}
+                </span>
                 <span className="text-[9px] text-slate-400">▼</span>
               </button>
 
               {langNoticeOpen && (
-                <div className="absolute right-0 mt-1 w-56 p-2.5 bg-white border border-[#D9DEE7] rounded-lg shadow-lg text-xs z-50 animate-in fade-in">
-                  <div className="font-semibold text-[#172033] mb-1">Language Selection</div>
-                  <p className="text-[#526071] text-[11px] leading-relaxed mb-2">
-                    Original source texts and documents are always preserved verbatim.
-                  </p>
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => {
-                        onChangeLanguage?.('en');
-                        setLangNoticeOpen(false);
-                      }}
-                      className={`w-full text-left px-2 py-1 rounded text-[11px] flex justify-between items-center ${
-                        currentLanguage === 'en'
-                          ? 'bg-blue-50 text-[#2457C5] font-semibold'
-                          : 'text-[#172033] hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>English</span>
-                      {currentLanguage === 'en' && <span>✓</span>}
-                    </button>
-                    <button
-                      onClick={() => {
-                        onChangeLanguage?.('yo');
-                        setLangNoticeOpen(false);
-                      }}
-                      className={`w-full text-left px-2 py-1 rounded text-[11px] flex justify-between items-center ${
-                        currentLanguage === 'yo'
-                          ? 'bg-blue-50 text-[#2457C5] font-semibold'
-                          : 'text-[#172033] hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>Yorùbá</span>
-                      {currentLanguage === 'yo' && <span>✓</span>}
-                    </button>
-                    <button
-                      onClick={() => {
-                        onChangeLanguage?.('ha');
-                        setLangNoticeOpen(false);
-                      }}
-                      className={`w-full text-left px-2 py-1 rounded text-[11px] flex justify-between items-center ${
-                        currentLanguage === 'ha'
-                          ? 'bg-blue-50 text-[#2457C5] font-semibold'
-                          : 'text-[#172033] hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>Hausa</span>
-                      {currentLanguage === 'ha' && <span>✓</span>}
-                    </button>
-                    <button
-                      onClick={() => {
-                        onChangeLanguage?.('ig');
-                        setLangNoticeOpen(false);
-                      }}
-                      className={`w-full text-left px-2 py-1 rounded text-[11px] flex justify-between items-center ${
-                        currentLanguage === 'ig'
-                          ? 'bg-blue-50 text-[#2457C5] font-semibold'
-                          : 'text-[#172033] hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>Igbo</span>
-                      {currentLanguage === 'ig' && <span>✓</span>}
-                    </button>
-                    <button
-                      onClick={() => {
-                        onChangeLanguage?.('pcm');
-                        setLangNoticeOpen(false);
-                      }}
-                      className={`w-full text-left px-2 py-1 rounded text-[11px] flex justify-between items-center ${
-                        currentLanguage === 'pcm'
-                          ? 'bg-blue-50 text-[#2457C5] font-semibold'
-                          : 'text-[#172033] hover:bg-slate-50'
-                      }`}
-                    >
-                      <span>Nigerian Pidgin</span>
-                      {currentLanguage === 'pcm' && <span>✓</span>}
-                    </button>
+                <div className="absolute right-0 mt-1 w-64 p-3 bg-white border border-[#D9DEE7] rounded-xl shadow-xl text-xs z-50 animate-in fade-in">
+                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100">
+                    <div className="font-bold text-[#172033] text-xs flex items-center gap-1.5">
+                      <Globe size={13} className="text-[#2457C5]" />
+                      <span>Language Accessibility</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">5 languages</span>
                   </div>
+
+                  <p className="text-[#526071] text-[11px] leading-relaxed mb-2.5">
+                    Original source evidence and official references are always preserved verbatim in their original text.
+                  </p>
+
+                  <div className="space-y-1">
+                    {SUPPORTED_LANGUAGES.map((lang) => {
+                      const isSelected = currentLanguage === lang.code;
+                      return (
+                        <button
+                          key={lang.code}
+                          id={`lang-select-${lang.code}`}
+                          onClick={() => {
+                            onChangeLanguage?.(lang.code);
+                            setLangNoticeOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex justify-between items-center transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-50 text-[#2457C5] font-bold border border-[#2457C5]/30'
+                              : 'text-[#172033] hover:bg-slate-50 border border-transparent'
+                          }`}
+                        >
+                          <span className="flex flex-col">
+                            <span className="font-semibold">{lang.displayName}</span>
+                          </span>
+                          {isSelected && <span className="text-[#2457C5] font-bold text-xs">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <button
                     onClick={() => setLangNoticeOpen(false)}
-                    className="w-full mt-2 text-center text-[10px] text-[#526071] hover:underline"
+                    className="w-full mt-2.5 pt-2 border-t border-slate-100 text-center text-[11px] text-[#526071] hover:text-[#172033] font-medium cursor-pointer"
                   >
-                    Close
+                    {t.close || 'Close'}
                   </button>
                 </div>
               )}

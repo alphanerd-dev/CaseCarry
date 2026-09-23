@@ -23,7 +23,7 @@ import {
 import { CaseRecord, CaseEvent, EvidenceFile, UnresolvedIssue, Pathway, ExtractedCaseFact } from '@/types/case';
 import { PathwayDiscoveryInput, PathwayStatus } from '@/lib/pathways/types';
 import { saveDraftLocally, loadDraftLocally, saveCaseLocally } from '@/lib/storage';
-import { SupportedLanguage } from '@/lib/i18n';
+import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
 import { Check, ShieldCheck, Bookmark } from 'lucide-react';
 
 export type AppStep =
@@ -38,15 +38,16 @@ export type AppStep =
   | 'bundle'
   | 'export';
 
-const STEP_LABELS: { key: AppStep; label: string; number: number }[] = [
-  { key: 'entry', label: 'Context', number: 1 },
-  { key: 'evidence', label: 'Evidence', number: 2 },
-  { key: 'reconstruction', label: 'Reconstruction', number: 3 },
-  { key: 'verification', label: 'Verification', number: 4 },
-  { key: 'unresolved', label: 'Unresolved Issue', number: 5 },
-  { key: 'pathway', label: 'Pathways', number: 6 },
-  { key: 'privacy', label: 'Privacy', number: 7 },
-  { key: 'bundle', label: 'Bundle', number: 8 },
+const ORDERED_STEPS: AppStep[] = [
+  'entry',
+  'evidence',
+  'reconstruction',
+  'verification',
+  'unresolved',
+  'pathway',
+  'privacy',
+  'bundle',
+  'export',
 ];
 
 export default function Home() {
@@ -54,8 +55,21 @@ export default function Home() {
   const [lowBandwidth, setLowBandwidth] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('en');
 
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
+
+  const STEP_LABELS: { key: AppStep; label: string; number: number }[] = [
+    { key: 'entry', label: t.stepContext || 'Context', number: 1 },
+    { key: 'evidence', label: t.stepEvidence || 'Evidence', number: 2 },
+    { key: 'reconstruction', label: t.stepReconstruction || 'Reconstruction', number: 3 },
+    { key: 'verification', label: t.stepVerification || 'Verification', number: 4 },
+    { key: 'unresolved', label: t.stepUnresolved || 'Unresolved Issue', number: 5 },
+    { key: 'pathway', label: t.stepPathways || 'Pathways', number: 6 },
+    { key: 'privacy', label: t.stepPrivacy || 'Privacy', number: 7 },
+    { key: 'bundle', label: t.stepBundle || 'Bundle', number: 8 },
+  ];
+
   // Case State
-  const [caseId, setCaseId] = useState<string>(() => `case-${Date.now()}`);
+  const [caseId, setCaseId] = useState<string>('case-pending');
   const [caseTitle, setCaseTitle] = useState<string>('Unresolved Matter');
   const [citizenName, setCitizenName] = useState<string>('Citizen Complainant');
   const [provider, setProvider] = useState<string>('');
@@ -70,7 +84,18 @@ export default function Home() {
   const [contradictions, setContradictions] = useState<string[]>([]);
   const [missingInformation, setMissingInformation] = useState<string[]>([]);
   const [verificationReviewed, setVerificationReviewed] = useState<boolean>(false);
-  const [caseCreatedAt, setCaseCreatedAt] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [caseCreatedAt, setCaseCreatedAt] = useState<string>('');
+
+  // Initialize dynamic client-side state values after mount to eliminate hydration mismatches (Error #418)
+  useEffect(() => {
+    const nextCaseId = `case-${Date.now()}`;
+    const nextCreatedAt = new Date().toISOString().slice(0, 10);
+    const frame = requestAnimationFrame(() => {
+      setCaseId((prev) => (prev === 'case-pending' ? nextCaseId : prev));
+      setCaseCreatedAt((prev) => (prev === '' ? nextCreatedAt : prev));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   // Unresolved Issue
   const [unresolved, setUnresolved] = useState<UnresolvedIssue>({
@@ -105,7 +130,7 @@ export default function Home() {
   const [maxUnlockedStepIndex, setMaxUnlockedStepIndex] = useState<number>(0);
 
   const goToStep = useCallback((step: AppStep) => {
-    const idx = STEP_LABELS.findIndex((item) => item.key === step);
+    const idx = ORDERED_STEPS.indexOf(step);
     if (idx >= 0) {
       setMaxUnlockedStepIndex((prev) => Math.max(prev, idx));
     }
@@ -497,6 +522,7 @@ export default function Home() {
               handlePreloadDemo();
               goToStep('reconstruction');
             }}
+            currentLanguage={currentLanguage}
           />
         )}
 
@@ -519,6 +545,7 @@ export default function Home() {
             onBack={() => goToStep('landing')}
             isDemoMode={isDemoMode}
             onSwitchToReal={handleStartFreshCase}
+            currentLanguage={currentLanguage}
           />
         )}
 

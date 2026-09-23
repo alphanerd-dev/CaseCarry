@@ -1,1 +1,67 @@
 @import "tailwindcss";
+
+@media print {
+  /* Hide all interactive, navigation, and administrative elements during print */
+  header,
+  footer,
+  nav,
+  button,
+  .print\:hidden,
+  [id*="btn"],
+  [id*="switcher"],
+  [id*="dropdown"],
+  .stepper,
+  .workflow-stepper {
+    display: none !important;
+  }
+
+  /* Optimize layout for standard letter/A4 printing */
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Reset main padding for print */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Prevent headings and important rows from breaking across pages */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Avoid breaking middle of cards, list items, or timeline blocks */
+  .card,
+  .timeline-item,
+  .evidence-card,
+  blockquote,
+  pre,
+  tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Ensure links display their destinations next to text (optional but highly transparent) */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 8.5pt;
+    color: #526071;
+  }
+
+  /* Do not show href destinations for internal jump links */
+  a[href^="#"]:after,
+  a[href^="javascript:"]:after {
+    content: "";
+  }
+
+  /* Set margins for print pages */
+  @page {
+    margin: 1.6cm 1.6cm 1.6cm 1.6cm;
+  }
+}

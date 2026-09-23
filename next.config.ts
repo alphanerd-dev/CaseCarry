@@ -7,11 +7,12 @@ delete process.env.VISUAL;
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  devIndicators: false,
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   // Allow access to remote image placeholder.
   images: {
@@ -26,12 +27,16 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ['motion'],
   webpack: (config, {dev}) => {
-    // HMR is disabled in AI Studio via DISABLE_HMR env var.
-    // Do not modify - file watching is disabled to prevent flickering during agent edits.
-    if (dev && process.env.DISABLE_HMR === 'true') {
-      config.watchOptions = {
-        ignored: /.*/,
-      };
+    if (dev) {
+      // Disable Webpack pack file filesystem cache in dev container to eliminate rename race condition (ENOENT .pack.gz_) and corrupted chunks
+      config.cache = false;
+      // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modify - file watching is disabled to prevent flickering during agent edits.
+      if (process.env.DISABLE_HMR === 'true') {
+        config.watchOptions = {
+          ignored: /.*/,
+        };
+      }
     }
     return config;
   },

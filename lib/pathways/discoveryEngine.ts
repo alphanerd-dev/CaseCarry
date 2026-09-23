@@ -85,15 +85,20 @@ export async function discoverCasePathways(input: PathwayDiscoveryInput): Promis
   const geminiKey = process.env.GEMINI_API_KEY;
 
   if (geminiKey) {
-    try {
-      const ai = new GoogleGenAI({ apiKey: geminiKey });
-      const promptText = `
+    const maxRetries = 2;
+    let attempt = 0;
+    let success = false;
+
+    while (attempt < maxRetries && !success) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        const promptText = `
 CITIZEN CASE SUMMARY:
 - Case Title: ${input.caseTitle || 'Unresolved Matter'}
 - Provider / Institution: ${institutionFact}
 - Reference / Account Number: ${input.referenceNumber || 'Not specified'}
-- Outcome of Previous Attempt: ${input.firstReportOutcome}
-- User Initial Narrative: ${input.userDescription}
+- Outcome of Previous Attempt: ${input.firstReportOutcome || 'Not specified'}
+- User Initial Narrative: ${input.userDescription || 'Not specified'}
 
 UNRESOLVED PROBLEM:
 - Problem: ${input.unresolved?.problem || 'Not specified'}
@@ -108,36 +113,47 @@ EXTRACTED CASE FACTS WITH PROVENANCE:
 ${JSON.stringify(facts, null, 2)}
 
 EVIDENCE ARTIFACTS:
-${input.evidenceSources.map((e) => `- ${e.filename} (${e.type}): ${e.textSnippet ? e.textSnippet.slice(0, 200) : 'No extracted text'}`).join('\n')}
+${(input.evidenceSources || []).map((e) => `- ${e.filename} (${e.type}): ${e.textSnippet ? e.textSnippet.slice(0, 200) : 'No extracted text'}`).join('\n')}
 
 INSTRUCTIONS:
 Identify 2 to 4 potential next regulatory, ombudsman, or dispute resolution pathways tailored to this specific case, taking previous failure into account. Return JSON matching the schema.
 `;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: [{ text: promptText }],
-        config: {
-          systemInstruction: CANONICAL_PATHWAY_DISCOVERY_PROMPT,
-          responseMimeType: 'application/json',
-        },
-      });
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: [{ text: promptText }],
+          config: {
+            systemInstruction: CANONICAL_PATHWAY_DISCOVERY_PROMPT,
+            responseMimeType: 'application/json',
+          },
+        });
 
-      const rawJson = response?.text || '{}';
-      try {
-        aiGeneratedResult = JSON.parse(rawJson);
-        providerUsed = 'gemini';
-        modelUsed = 'gemini-3.8-flash';
-        discoverySource = 'live_research';
-      } catch {
-        const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-        aiGeneratedResult = JSON.parse(cleaned);
-        providerUsed = 'gemini';
-        modelUsed = 'gemini-3.8-flash';
-        discoverySource = 'live_research';
+        const rawJson = response?.text || '{}';
+        try {
+          aiGeneratedResult = JSON.parse(rawJson);
+          providerUsed = 'gemini';
+          modelUsed = 'gemini-3.8-flash';
+          discoverySource = 'live_research';
+        } catch {
+          const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+          aiGeneratedResult = JSON.parse(cleaned);
+          providerUsed = 'gemini';
+          modelUsed = 'gemini-3.8-flash';
+          discoverySource = 'live_research';
+        }
+        success = true;
+      } catch (err: any) {
+        attempt++;
+        const errStr = err?.toString() || '';
+        const isTransient = errStr.includes('503') || errStr.includes('UNAVAILABLE') || errStr.includes('resource_exhausted') || errStr.includes('overloaded');
+        if (isTransient && attempt < maxRetries) {
+          console.info(`[CaseCarry Engine] Live pathway discovery busy (Attempt ${attempt}). Retrying...`);
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        } else {
+          console.info('[CaseCarry Engine] Utilizing local verified pathway cache (high-demand fallback active).');
+          break;
+        }
       }
-    } catch (err) {
-      console.warn('AI live pathway research error, falling back to verified pathway cache:', err);
     }
   }
 

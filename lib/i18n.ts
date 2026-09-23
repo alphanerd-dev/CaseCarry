@@ -1,5 +1,20 @@
 export type SupportedLanguage = 'en' | 'yo' | 'ha' | 'ig' | 'pcm';
 
+export interface LanguageOption {
+  code: SupportedLanguage;
+  name: string;
+  nativeName: string;
+  displayName: string;
+}
+
+export const SUPPORTED_LANGUAGES: LanguageOption[] = [
+  { code: 'en', name: 'English', nativeName: 'English', displayName: 'English' },
+  { code: 'yo', name: 'Yorùbá', nativeName: 'Èdè Yorùbá', displayName: 'Yorùbá (Èdè Yorùbá)' },
+  { code: 'ha', name: 'Hausa', nativeName: 'Harshen Hausa', displayName: 'Hausa (Harshen Hausa)' },
+  { code: 'ig', name: 'Igbo', nativeName: 'Asụsụ Igbo', displayName: 'Igbo (Asụsụ Igbo)' },
+  { code: 'pcm', name: 'Nigerian Pidgin', nativeName: 'Naijá', displayName: 'Nigerian Pidgin (Naijá)' },
+];
+
 export interface TranslationDict {
   // Brand & Common
   appName: string;
@@ -180,6 +195,15 @@ export interface TranslationDict {
   copySummary: string;
   optional: string;
   skipStep: string;
+  shareWhatsApp: string;
+  shareWhatsAppDesc: string;
+  downloadPdf: string;
+  downloadPdfDesc: string;
+  pdfGenerating: string;
+  pdfSuccess: string;
+  whatsAppShareSuccess: string;
+  shareWhatsAppBtn: string;
+  copyWhatsAppText: string;
 }
 
 export const TRANSLATIONS: Record<SupportedLanguage, TranslationDict> = {
@@ -345,12 +369,21 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDict> = {
     exportSubtitle: 'Download, print, or copy your complete case dossier.',
     downloadText: 'Download Plain Text (.txt)',
     downloadJson: 'Download Case Bundle (.json)',
-    printOrPdf: 'Print / Save as PDF',
+    printOrPdf: 'Print Paper Copy',
     printPaperCopy: 'Print Paper Copy',
     exportBundle: 'Export & Save Bundle',
     copySummary: 'Copy Formatted Summary',
     optional: 'Optional',
     skipStep: 'Skip this step',
+    shareWhatsApp: 'Share on WhatsApp',
+    shareWhatsAppDesc: 'Send formatted case dossier summary directly to a caseworker, lawyer, or support line via WhatsApp.',
+    downloadPdf: 'Download Official PDF Bundle (.pdf)',
+    downloadPdfDesc: 'Formatted, multi-page carry-forward case dossier with verified timeline, metadata, and evidence index.',
+    pdfGenerating: 'Generating PDF bundle...',
+    pdfSuccess: 'Official PDF bundle generated and downloaded.',
+    whatsAppShareSuccess: 'WhatsApp share text prepared and opened.',
+    shareWhatsAppBtn: 'Open WhatsApp',
+    copyWhatsAppText: 'Copy WhatsApp Message',
   },
 
   yo: {
@@ -521,6 +554,15 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDict> = {
     copySummary: 'Daakọ Akopọ Ọrọ',
     optional: 'Aṣayan',
     skipStep: 'Foju fo igbesẹ yii',
+    shareWhatsApp: 'Pin lori WhatsApp (Share on WhatsApp)',
+    shareWhatsAppDesc: 'Fi akopọ ọrọ ẹjọ rẹ ranṣẹ taara si agbẹjọro tabi adari lori WhatsApp.',
+    downloadPdf: 'Gba Iwe PDF (.pdf)',
+    downloadPdfDesc: 'Iwe PDF to peye pẹlu itan akọsilẹ ati atokọ gbogbo ẹri to daju.',
+    pdfGenerating: 'N ṣe agbekalẹ iwe PDF...',
+    pdfSuccess: 'Iwe PDF ti jade ti o si ti gba wọle.',
+    whatsAppShareSuccess: 'Ọrọ WhatsApp ti mura tan ti o si ṣii.',
+    shareWhatsAppBtn: 'Ṣii WhatsApp',
+    copyWhatsAppText: 'Daakọ Ọrọ WhatsApp',
   },
 
   ha: {
@@ -691,6 +733,15 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDict> = {
     copySummary: 'Kwafi Taƙaitaccen Bayani',
     optional: 'Zabi ne',
     skipStep: 'Tsallake wannan matakin',
+    shareWhatsApp: 'Raba ta WhatsApp (Share on WhatsApp)',
+    shareWhatsAppDesc: 'Aika taƙaitaccen bayanin shari’ar ku kai tsaye ga lauya ko jami’i ta WhatsApp.',
+    downloadPdf: 'Sauke Takardar PDF (.pdf)',
+    downloadPdfDesc: 'Cikakken takardar PDF mai tsari tare da ingantaccen tarihin lokaci da shaidu.',
+    pdfGenerating: 'Ana haɗa takardar PDF...',
+    pdfSuccess: 'An sauke takardar PDF cikin nasara.',
+    whatsAppShareSuccess: 'An shirya rubutun WhatsApp kuma an buɗe.',
+    shareWhatsAppBtn: 'Buɗe WhatsApp',
+    copyWhatsAppText: 'Kwafi Rubutun WhatsApp',
   },
 
   ig: {
@@ -861,6 +912,15 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDict> = {
     copySummary: 'Detuo Nchịkọta Ederede',
     optional: 'Nhọrọ',
     skipStep: 'Mafere usoro a',
+    shareWhatsApp: 'Kekọrịta na WhatsApp (Share on WhatsApp)',
+    shareWhatsAppDesc: 'Ziga nchịkọta okwu ikpe gị ozugbo nye onye ọka iwu ma ọ bụ onye enyemaka na WhatsApp.',
+    downloadPdf: 'Budata Akwụkwọ PDF (.pdf)',
+    downloadPdfDesc: 'Akwụkwọ PDF ahaziri nke ọma nwere usoro ihe omume na ndepụta ihe akaebe.',
+    pdfGenerating: 'Na-ahazi akwụkwọ PDF...',
+    pdfSuccess: 'Ebudatala akwụkwọ PDF nke ọma.',
+    whatsAppShareSuccess: 'Edebere ozi WhatsApp ma mepee ya.',
+    shareWhatsAppBtn: 'Mepee WhatsApp',
+    copyWhatsAppText: 'Detuo Ozi WhatsApp',
   },
 
   pcm: {
@@ -1031,5 +1091,14 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDict> = {
     copySummary: 'Copy Formatted Summary',
     optional: 'Optional',
     skipStep: 'Skip this step',
+    shareWhatsApp: 'Share for WhatsApp (Share on WhatsApp)',
+    shareWhatsAppDesc: 'Send case summary directly to lawyer, caseworker or helper through WhatsApp.',
+    downloadPdf: 'Download Official PDF Bundle (.pdf)',
+    downloadPdfDesc: 'Properly formatted PDF file with complete verified timeline, facts, and evidence list.',
+    pdfGenerating: 'Dey create PDF bundle...',
+    pdfSuccess: 'PDF file don download sharp sharp.',
+    whatsAppShareSuccess: 'WhatsApp text don set and open.',
+    shareWhatsAppBtn: 'Open WhatsApp',
+    copyWhatsAppText: 'Copy WhatsApp Message',
   },
 };

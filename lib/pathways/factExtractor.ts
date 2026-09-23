@@ -8,21 +8,26 @@ export function extractPathwayCaseFacts(input: PathwayDiscoveryInput): {
   facts: PathwayFact[];
   safetyAlert?: SafetyAlert;
 } {
+  const safeInput = input || ({} as PathwayDiscoveryInput);
+  const evidenceSources = Array.isArray(safeInput.evidenceSources) ? safeInput.evidenceSources : [];
+  const events = Array.isArray(safeInput.events) ? safeInput.events : [];
+  const unresolved = safeInput.unresolved || {};
+
   const facts: PathwayFact[] = [];
-  const validSourceMap = new Map(input.evidenceSources.map((s) => [s.id, s.filename]));
+  const validSourceMap = new Map(evidenceSources.map((s) => [s.id, s.filename]));
 
   const combinedText = [
-    input.userDescription || '',
-    input.caseTitle || '',
-    input.provider || '',
-    input.referenceNumber || '',
-    input.unresolved?.problem || '',
-    input.unresolved?.whatHappened || '',
-    input.unresolved?.responseReceived || '',
-    input.unresolved?.whatWasNotResolved || '',
-    input.unresolved?.requestedAction || '',
-    ...input.events.map((e) => `${e.title} ${e.description}`),
-    ...input.evidenceSources.map((e) => `${e.title} ${e.filename} ${e.textSnippet || ''}`),
+    safeInput.userDescription || '',
+    safeInput.caseTitle || '',
+    safeInput.provider || '',
+    safeInput.referenceNumber || '',
+    unresolved.problem || '',
+    unresolved.whatHappened || '',
+    unresolved.responseReceived || '',
+    unresolved.whatWasNotResolved || '',
+    unresolved.requestedAction || '',
+    ...events.map((e) => `${e.title || ''} ${e.description || ''}`),
+    ...evidenceSources.map((e) => `${e.title || ''} ${e.filename || ''} ${e.textSnippet || ''}`),
   ].join(' ');
 
   const lowerText = combinedText.toLowerCase();
@@ -66,16 +71,16 @@ export function extractPathwayCaseFacts(input: PathwayDiscoveryInput): {
   }
 
   // 2. Institution / Provider Identification
-  const docWithProvider = input.evidenceSources.find((s) =>
-    (s.textSnippet || '').toLowerCase().includes((input.provider || '').toLowerCase())
+  const docWithProvider = evidenceSources.find((s) =>
+    (s.textSnippet || '').toLowerCase().includes((safeInput.provider || '').toLowerCase())
   );
 
-  if (input.provider && input.provider.trim().length > 0) {
+  if (safeInput.provider && safeInput.provider.trim().length > 0) {
     const isSourceBacked = !!docWithProvider;
     facts.push({
       field: 'institution',
       label: 'Institution / Provider Involved',
-      value: input.provider.trim(),
+      value: safeInput.provider.trim(),
       provenance: isSourceBacked ? 'SOURCE_BACKED' : 'USER_REPORTED',
       sourceIds: isSourceBacked ? [docWithProvider.id] : [],
       sourceNames: isSourceBacked ? [docWithProvider.filename] : ['Citizen Statement'],
@@ -135,7 +140,7 @@ export function extractPathwayCaseFacts(input: PathwayDiscoveryInput): {
   }
 
   // Check if sector is verified in documents
-  const sectorDoc = input.evidenceSources.find((s) => {
+  const sectorDoc = evidenceSources.find((s) => {
     const snip = (s.textSnippet || '').toLowerCase();
     return (
       (sectorCategory === 'electricity' && (snip.includes('bill') || snip.includes('meter') || snip.includes('kwh') || snip.includes('electricity'))) ||
@@ -183,7 +188,7 @@ export function extractPathwayCaseFacts(input: PathwayDiscoveryInput): {
 
   // Check which document mentioned the location
   if (foundState) {
-    const locDoc = input.evidenceSources.find((s) => {
+    const locDoc = evidenceSources.find((s) => {
       const snip = `${s.textSnippet || ''} ${s.filename}`.toLowerCase();
       const sk = stateKeywords.find((k) => k.state === foundState);
       return sk?.match.some((kw) => snip.includes(kw));
@@ -212,17 +217,17 @@ export function extractPathwayCaseFacts(input: PathwayDiscoveryInput): {
     'never-reported': 'First pathway not yet lodged with provider',
   };
 
-  const outcomeText = outcomeLabelMap[input.firstReportOutcome] || input.firstReportOutcome || 'Initial complaint lodged with service provider';
+  const outcomeText = outcomeLabelMap[safeInput.firstReportOutcome] || safeInput.firstReportOutcome || 'Initial complaint lodged with service provider';
 
-  const responseDoc = input.evidenceSources.find((s) => {
-    const snip = `${s.filename} ${s.title} ${s.textSnippet || ''}`.toLowerCase();
+  const responseDoc = evidenceSources.find((s) => {
+    const snip = `${s.filename} ${s.title || ''} ${s.textSnippet || ''}`.toLowerCase();
     return snip.includes('response') || snip.includes('closure') || snip.includes('letter') || snip.includes('reply') || snip.includes('notice');
   });
 
   facts.push({
     field: 'previousAuthority',
     label: 'Previous Pathway Attempted',
-    value: input.provider ? `Direct Customer Complaint to ${input.provider}` : 'First-Line Provider Complaint',
+    value: safeInput.provider ? `Direct Customer Complaint to ${safeInput.provider}` : 'First-Line Provider Complaint',
     provenance: 'USER_REPORTED',
     sourceIds: [],
     sourceNames: ['Citizen Statement'],
@@ -238,8 +243,8 @@ export function extractPathwayCaseFacts(input: PathwayDiscoveryInput): {
   });
 
   // 6. Unresolved Issue & Remedy Sought
-  const unresolvedProblem = input.unresolved?.problem || input.unresolved?.whatWasNotResolved || input.userDescription || 'Dispute remains unrectified';
-  const problemDoc = input.evidenceSources.find((s) => s.type === 'pdf' || s.type === 'receipt' || (s.textSnippet && s.textSnippet.length > 50));
+  const unresolvedProblem = unresolved.problem || unresolved.whatWasNotResolved || safeInput.userDescription || 'Dispute remains unrectified';
+  const problemDoc = evidenceSources.find((s) => s.type === 'pdf' || s.type === 'receipt' || (s.textSnippet && s.textSnippet.length > 50));
 
   facts.push({
     field: 'unresolvedIssue',
@@ -250,11 +255,11 @@ export function extractPathwayCaseFacts(input: PathwayDiscoveryInput): {
     sourceNames: problemDoc ? [problemDoc.filename] : ['Citizen Statement'],
   });
 
-  if (input.unresolved?.requestedAction) {
+  if (unresolved.requestedAction) {
     facts.push({
       field: 'requestedRemedy',
       label: 'Requested Remedy / Objective',
-      value: input.unresolved.requestedAction.slice(0, 250),
+      value: unresolved.requestedAction.slice(0, 250),
       provenance: 'USER_REPORTED',
       sourceIds: [],
       sourceNames: ['Citizen Statement'],
@@ -262,14 +267,14 @@ export function extractPathwayCaseFacts(input: PathwayDiscoveryInput): {
   }
 
   // 7. Available Evidence Inventory
-  if (input.evidenceSources.length > 0) {
+  if (evidenceSources.length > 0) {
     facts.push({
       field: 'documentsAvailable',
       label: 'Documentary Evidence Available',
-      value: `${input.evidenceSources.length} item(s): ${input.evidenceSources.map((e) => e.filename).join(', ')}`,
+      value: `${evidenceSources.length} item(s): ${evidenceSources.map((e) => e.filename).join(', ')}`,
       provenance: 'SOURCE_BACKED',
-      sourceIds: input.evidenceSources.map((e) => e.id),
-      sourceNames: input.evidenceSources.map((e) => e.filename),
+      sourceIds: evidenceSources.map((e) => e.id),
+      sourceNames: evidenceSources.map((e) => e.filename),
     });
   }
 
