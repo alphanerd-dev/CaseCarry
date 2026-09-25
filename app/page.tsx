@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Header } from '@/components/Header';
+import { WorkflowStepper } from '@/components/WorkflowStepper';
+import { CivicFooter } from '@/components/CivicFooter';
 import { LandingView } from '@/components/LandingView';
 import { CaseEntryView } from '@/components/CaseEntryView';
 import { EvidenceCollectionView } from '@/components/EvidenceCollectionView';
@@ -13,433 +15,49 @@ import { PrivacyReviewView } from '@/components/PrivacyReviewView';
 import { CarryForwardBundleView } from '@/components/CarryForwardBundleView';
 import { ExportView } from '@/components/ExportView';
 import { SourceViewerModal } from '@/components/SourceViewerModal';
-import {
-  SAMPLE_CASE_RECORD,
-  SAMPLE_EVIDENCE_FILES,
-  SAMPLE_CASE_EVENTS,
-  SAMPLE_UNRESOLVED_ISSUE,
-  SAMPLE_PATHWAYS,
-} from '@/lib/demoData';
-import { CaseRecord, CaseEvent, EvidenceFile, UnresolvedIssue, Pathway, ExtractedCaseFact } from '@/types/case';
-import { PathwayDiscoveryInput, PathwayStatus } from '@/lib/pathways/types';
-import { saveDraftLocally, loadDraftLocally, saveCaseLocally } from '@/lib/storage';
-import { SupportedLanguage, TRANSLATIONS } from '@/lib/i18n';
-import { Check, ShieldCheck, Bookmark } from 'lucide-react';
-
-export type AppStep =
-  | 'landing'
-  | 'entry'
-  | 'evidence'
-  | 'reconstruction'
-  | 'verification'
-  | 'unresolved'
-  | 'pathway'
-  | 'privacy'
-  | 'bundle'
-  | 'export';
-
-const ORDERED_STEPS: AppStep[] = [
-  'entry',
-  'evidence',
-  'reconstruction',
-  'verification',
-  'unresolved',
-  'pathway',
-  'privacy',
-  'bundle',
-  'export',
-];
+import { SupportedLanguage } from '@/lib/i18n';
+import { useCaseManager } from '@/hooks/useCaseManager';
+import { useWorkflowNavigation } from '@/hooks/useWorkflowNavigation';
+import { CaseRecord } from '@/types/case';
 
 export default function Home() {
-  const [currentStep, setCurrentStep] = useState<AppStep>('landing');
+  // UI Accessibility Preferences
   const [lowBandwidth, setLowBandwidth] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('en');
 
-  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
-
-  const STEP_LABELS: { key: AppStep; label: string; number: number }[] = [
-    { key: 'entry', label: t.stepContext || 'Context', number: 1 },
-    { key: 'evidence', label: t.stepEvidence || 'Evidence', number: 2 },
-    { key: 'reconstruction', label: t.stepReconstruction || 'Reconstruction', number: 3 },
-    { key: 'verification', label: t.stepVerification || 'Verification', number: 4 },
-    { key: 'unresolved', label: t.stepUnresolved || 'Unresolved Issue', number: 5 },
-    { key: 'pathway', label: t.stepPathways || 'Pathways', number: 6 },
-    { key: 'privacy', label: t.stepPrivacy || 'Privacy', number: 7 },
-    { key: 'bundle', label: t.stepBundle || 'Bundle', number: 8 },
-  ];
-
-  // Case State
-  const [caseId, setCaseId] = useState<string>('case-pending');
-  const [caseTitle, setCaseTitle] = useState<string>('Unresolved Matter');
-  const [citizenName, setCitizenName] = useState<string>('Citizen Complainant');
-  const [provider, setProvider] = useState<string>('');
-  const [referenceNumber, setReferenceNumber] = useState<string>('');
-  const [initialSummary, setInitialSummary] = useState<string>('');
-  const [selectedOutcome, setSelectedOutcome] = useState<string>('');
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
-
-  // Evidence & Chronology
-  const [evidenceList, setEvidenceList] = useState<EvidenceFile[]>([]);
-  const [events, setEvents] = useState<CaseEvent[]>([]);
-  const [contradictions, setContradictions] = useState<string[]>([]);
-  const [missingInformation, setMissingInformation] = useState<string[]>([]);
-  const [verificationReviewed, setVerificationReviewed] = useState<boolean>(false);
-  const [caseCreatedAt, setCaseCreatedAt] = useState<string>('');
-
-  // Initialize dynamic client-side state values after mount to eliminate hydration mismatches (Error #418)
-  useEffect(() => {
-    const nextCaseId = `case-${Date.now()}`;
-    const nextCreatedAt = new Date().toISOString().slice(0, 10);
-    const frame = requestAnimationFrame(() => {
-      setCaseId((prev) => (prev === 'case-pending' ? nextCaseId : prev));
-      setCaseCreatedAt((prev) => (prev === '' ? nextCreatedAt : prev));
-    });
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  // Unresolved Issue
-  const [unresolved, setUnresolved] = useState<UnresolvedIssue>({
-    problem: '',
-    originalIssue: '',
-    whatWasRequested: '',
-    whatHappened: '',
-    responseReceived: '',
-    whatWasResolved: '',
-    whatWasNotResolved: '',
-    resolutionVision: '',
-    requestedAction: '',
-    alreadyTried: '',
-  });
-
-  // Pathways & Dynamic Discovery
-  const [pathways, setPathways] = useState<Pathway[]>(SAMPLE_PATHWAYS);
-  const [selectedPathways, setSelectedPathways] = useState<string[]>([]);
-  const [extractedFacts, setExtractedFacts] = useState<ExtractedCaseFact[]>([]);
-  const [safetyAlert, setSafetyAlert] = useState<{
-    isHighRisk: boolean;
-    riskType?: string;
-    advisory: string;
-    emergencyResources?: Array<{ name: string; contact: string; note: string }>;
-  } | undefined>(undefined);
-  const [discoverySource, setDiscoverySource] = useState<'live_research' | 'verified_cache' | 'local_fallback'>('verified_cache');
-
-  // Modal State for Source Inspector
-  const [viewingSource, setViewingSource] = useState<EvidenceFile | null>(null);
-
-  // Highest unlocked step index reached by user to prevent premature skips while allowing backwards navigation
-  const [maxUnlockedStepIndex, setMaxUnlockedStepIndex] = useState<number>(0);
-
-  const goToStep = useCallback((step: AppStep) => {
-    const idx = ORDERED_STEPS.indexOf(step);
-    if (idx >= 0) {
-      setMaxUnlockedStepIndex((prev) => Math.max(prev, idx));
-    }
-    setCurrentStep(step);
-  }, []);
-
-  // Auto-Save Draft to Local Storage (IndexedDB with debounce)
-  useEffect(() => {
-    if (currentStep === 'landing' || isDemoMode) return;
-
-    const establishedDate = events.find(
-      (e) => e.date && e.date !== 'Date not established' && e.date !== 'Unspecified date'
-    )?.date;
-
-    const currentRecord: CaseRecord = {
-      id: caseId,
-      title: caseTitle || 'Unresolved Case Record',
-      provider: provider || 'Service Provider',
-      accountReference: referenceNumber,
-      citizenName: citizenName || 'Citizen',
-      createdAt: caseCreatedAt,
-      dateOpened: establishedDate || undefined,
-      updatedAt: new Date().toISOString().slice(0, 10),
-      firstReportOutcome: selectedOutcome as any,
-      events,
-      evidence: evidenceList,
-      unresolved,
-      pathways,
-      selectedPathways,
-      contradictions,
-      missingInformation,
-      verificationReviewed,
-      isDemo: false,
-    };
-
-    const timer = setTimeout(() => {
-      saveDraftLocally(currentRecord, currentStep, isDemoMode).catch((e) => console.warn('Draft save error:', e));
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [
-    caseId,
-    caseTitle,
-    provider,
-    referenceNumber,
-    citizenName,
-    selectedOutcome,
-    events,
-    evidenceList,
-    unresolved,
-    pathways,
-    selectedPathways,
-    contradictions,
-    missingInformation,
-    verificationReviewed,
-    caseCreatedAt,
+  // Step and View Navigation Hook
+  const {
     currentStep,
-    isDemoMode,
-  ]);
+    setCurrentStep,
+    goToStep,
+    unlockAllSteps,
+    resetProgress,
+    stepLabels,
+    showWorkflowStepper,
+  } = useWorkflowNavigation({ currentLanguage });
 
-  // Load sample case into state
-  const handlePreloadDemo = () => {
-    setIsDemoMode(true);
-    setCaseId(SAMPLE_CASE_RECORD.id);
-    setCaseTitle(SAMPLE_CASE_RECORD.title);
-    setCitizenName(SAMPLE_CASE_RECORD.citizenName);
-    setProvider(SAMPLE_CASE_RECORD.provider);
-    setReferenceNumber(SAMPLE_CASE_RECORD.accountReference || '0456789123');
-    setInitialSummary(
-      'Disputed improper estimated electricity bill in July 2026. Received closure letter claiming adjustment, but subsequent bill ignored USSD payment and demanded excessive charges under disconnection threat.'
-    );
-    setSelectedOutcome('response-didnt-resolve');
-    setEvidenceList(SAMPLE_EVIDENCE_FILES);
-    setEvents(SAMPLE_CASE_EVENTS);
-    setContradictions(SAMPLE_CASE_RECORD.contradictions || []);
-    setMissingInformation(SAMPLE_CASE_RECORD.missingInformation || []);
-    setUnresolved(SAMPLE_UNRESOLVED_ISSUE);
-    setPathways(SAMPLE_PATHWAYS);
-    setSelectedPathways(['ogserc-consumer-dispute', 'fccpc-consumer-protection']);
-    setVerificationReviewed(true);
-    setCaseCreatedAt(SAMPLE_CASE_RECORD.createdAt || new Date().toISOString().slice(0, 10));
-    setMaxUnlockedStepIndex(STEP_LABELS.length - 1);
-  };
+  // Core Case State, Persisting Logic, and Action Handlers Hook
+  const caseManager = useCaseManager({ currentStep });
 
-  // Start fresh citizen case
+  // Start fresh citizen complaint workflow
   const handleStartFreshCase = () => {
-    setIsDemoMode(false);
-    setCaseId(`case-${Date.now()}`);
-    setCaseTitle('Unresolved Complaint');
-    setCitizenName('Citizen');
-    setProvider('');
-    setReferenceNumber('');
-    setInitialSummary('');
-    setSelectedOutcome('');
-    setEvidenceList([]);
-    setEvents([]);
-    setContradictions([]);
-    setMissingInformation([]);
-    setVerificationReviewed(false);
-    setCaseCreatedAt(new Date().toISOString().slice(0, 10));
-    setUnresolved({
-      problem: '',
-      originalIssue: '',
-      whatWasRequested: '',
-      whatHappened: '',
-      responseReceived: '',
-      whatWasResolved: '',
-      whatWasNotResolved: '',
-      resolutionVision: '',
-      requestedAction: '',
-      alreadyTried: '',
-    });
-    setPathways(SAMPLE_PATHWAYS);
-    setSelectedPathways([]);
-    setMaxUnlockedStepIndex(0);
+    caseManager.startFreshCase();
+    resetProgress();
     setCurrentStep('entry');
   };
 
-  // Load a saved case from IndexedDB
-  const handleLoadSavedCase = (savedRecord: CaseRecord) => {
-    setIsDemoMode(Boolean(savedRecord.isDemo));
-    setCaseId(savedRecord.id);
-    setCaseTitle(savedRecord.title);
-    setCitizenName(savedRecord.citizenName);
-    setProvider(savedRecord.provider);
-    setReferenceNumber(savedRecord.accountReference || '');
-    setSelectedOutcome(savedRecord.firstReportOutcome || '');
-    setEvidenceList(savedRecord.evidence || []);
-    setEvents(savedRecord.events || []);
-    setContradictions(savedRecord.contradictions || []);
-    setMissingInformation(savedRecord.missingInformation || []);
-    setVerificationReviewed(Boolean(savedRecord.verificationReviewed));
-    setCaseCreatedAt(savedRecord.createdAt || new Date().toISOString().slice(0, 10));
-    setUnresolved(savedRecord.unresolved);
-    setPathways(savedRecord.pathways || SAMPLE_PATHWAYS);
-    setSelectedPathways(savedRecord.selectedPathways || []);
-    setMaxUnlockedStepIndex(STEP_LABELS.length - 1);
+  // Preload structured demo scenario
+  const handlePreloadDemo = () => {
+    caseManager.preloadDemo();
+    unlockAllSteps();
+  };
+
+  // Load existing case from local IndexedDB
+  const handleLoadSavedCase = (record: CaseRecord) => {
+    caseManager.loadSavedCase(record);
+    unlockAllSteps();
     setCurrentStep('bundle');
   };
-
-  const establishedDate = events.find(
-    (e) => e.date && e.date !== 'Date not established' && e.date !== 'Unspecified date'
-  )?.date;
-
-  // Full current case record
-  const currentCaseRecord: CaseRecord = {
-    id: caseId,
-    title: caseTitle || (provider ? `Case with ${provider}` : 'Unresolved Case Record'),
-    provider: provider || 'Service Provider',
-    accountReference: referenceNumber,
-    citizenName: citizenName || 'Citizen',
-    createdAt: caseCreatedAt,
-    dateOpened: establishedDate || undefined,
-    updatedAt: new Date().toISOString().slice(0, 10),
-    firstReportOutcome: selectedOutcome as any,
-    events,
-    evidence: evidenceList,
-    unresolved,
-    pathways,
-    selectedPathways,
-    extractedFacts,
-    safetyAlert,
-    pathwayDiscoverySource: discoverySource,
-    contradictions,
-    missingInformation,
-    verificationReviewed,
-    isDemo: isDemoMode,
-  };
-
-  // Evidence handlers
-  const handleAddEvidence = (file: EvidenceFile) => {
-    setEvidenceList((prev) => [file, ...prev]);
-  };
-
-  const handleRemoveEvidence = (id: string) => {
-    setEvidenceList((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const handleToggleEvidencePrivacy = (id: string) => {
-    setEvidenceList((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const next = item.privacyStatus === 'included' ? 'private' : 'included';
-          return { ...item, privacyStatus: next };
-        }
-        return item;
-      })
-    );
-  };
-
-  const handleUpdateEvidencePrivacy = (
-    id: string,
-    status: 'included' | 'private' | 'redacted'
-  ) => {
-    setEvidenceList((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, privacyStatus: status } : item))
-    );
-  };
-
-  // Chronology & Reconstruction handlers
-  const handleUpdateReconstruction = (
-    newEvents: CaseEvent[],
-    newContradictions?: string[],
-    newMissingInfo?: string[],
-    unresolvedDraft?: Partial<UnresolvedIssue>
-  ) => {
-    setEvents(newEvents);
-    if (newContradictions) setContradictions(newContradictions);
-    if (newMissingInfo) setMissingInformation(newMissingInfo);
-    if (unresolvedDraft) {
-      setUnresolved((prev) => ({
-        ...prev,
-        ...unresolvedDraft,
-        problem: unresolvedDraft.problem || prev.problem,
-      }));
-    }
-  };
-
-  const handleAddCustomEvent = (ev: CaseEvent) => {
-    setEvents((prev) => [...prev, ev]);
-  };
-
-  const handleUpdateEvent = (updated: CaseEvent) => {
-    setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-  };
-
-  const handleDeleteEvent = (id: string) => {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-  };
-
-  const handleVerifyAllSourceBacked = () => {
-    setEvents((prev) =>
-      prev.map((e) => (e.provenance === 'source-backed' ? { ...e, verifiedByUser: true } : e))
-    );
-  };
-
-  // Pathway handlers
-  const handleTogglePathway = (id: string) => {
-    setSelectedPathways((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-  };
-
-  const handleUpdatePathways = (
-    newPathways: Pathway[],
-    newFacts?: ExtractedCaseFact[],
-    discoveryMeta?: any
-  ) => {
-    setPathways(newPathways);
-    if (newFacts) setExtractedFacts(newFacts);
-    if (discoveryMeta?.source) setDiscoverySource(discoveryMeta.source);
-    if (discoveryMeta?.safetyAlert) setSafetyAlert(discoveryMeta.safetyAlert);
-  };
-
-  const handleUpdatePathwayStatus = (
-    id: string,
-    status: PathwayStatus,
-    notes?: string
-  ) => {
-    setPathways((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              status,
-              ...(notes !== undefined ? { previousAttemptNotes: notes } : {}),
-            }
-          : p
-      )
-    );
-  };
-
-  const handleAddCustomPathway = (custom: Pathway) => {
-    setPathways((prev) => [custom, ...prev]);
-    setSelectedPathways((prev) => [...prev, custom.id]);
-  };
-
-  // Construct pathway discovery input from complete verified case record
-  const pathwayDiscoveryInput: PathwayDiscoveryInput = {
-    caseTitle: caseTitle || (provider ? `Case with ${provider}` : 'Unresolved Case Record'),
-    citizenName,
-    provider,
-    referenceNumber,
-    firstReportOutcome: selectedOutcome,
-    userDescription: initialSummary,
-    events,
-    unresolved,
-    evidenceSources: evidenceList.map((e) => ({
-      id: e.id,
-      title: e.title,
-      filename: e.filename,
-      type: e.type,
-      textSnippet: e.extractedText || e.fullSnippet || e.contentSummary,
-    })),
-    contradictions,
-    missingInformation,
-  };
-
-  // Preserve privately to IndexedDB
-  const handlePreservePrivately = async () => {
-    await saveCaseLocally(currentCaseRecord);
-  };
-
-  // Scroll to top on step change
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentStep]);
-
-  const showWorkflowStepper = currentStep !== 'landing' && currentStep !== 'export';
 
   return (
     <div
@@ -463,58 +81,18 @@ export default function Home() {
         activeStep={currentStep}
       />
 
-      {/* Workflow Stepper Navigation */}
+      {/* Workflow Stepper Navigation Bar */}
       {showWorkflowStepper && (
-        <div className="bg-white border-b border-[#D9DEE7] py-2.5 px-3 sm:px-6 overflow-x-auto print:hidden">
-          <div className="max-w-5xl mx-auto flex items-center justify-start sm:justify-between min-w-max gap-1.5 sm:gap-2 text-xs">
-            {STEP_LABELS.map((s, idx) => {
-              const isCurrent = currentStep === s.key;
-              const currentIndex = STEP_LABELS.findIndex((item) => item.key === currentStep);
-              const isPassed = idx < currentIndex;
-
-              // Allow navigation to any unlocked step reached by the citizen
-              const canNavigate = idx <= maxUnlockedStepIndex;
-
-              return (
-                <div key={s.key} className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    disabled={!canNavigate}
-                    onClick={() => goToStep(s.key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors min-h-[34px] ${
-                      isCurrent
-                        ? 'bg-[#2457C5] text-white shadow-xs'
-                        : isPassed
-                        ? 'text-[#18794E] hover:bg-emerald-50'
-                        : canNavigate
-                        ? 'text-[#526071] hover:text-[#172033] hover:bg-slate-50'
-                        : 'text-slate-300 cursor-not-allowed opacity-60'
-                    }`}
-                  >
-                    <span
-                      className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold shrink-0 ${
-                        isCurrent
-                          ? 'bg-white text-[#2457C5]'
-                          : isPassed
-                          ? 'bg-[#18794E] text-white'
-                          : 'bg-slate-200 text-[#526071]'
-                      }`}
-                    >
-                      {isPassed ? <Check size={10} /> : s.number}
-                    </span>
-                    <span className="whitespace-nowrap">{s.label}</span>
-                  </button>
-                  {idx < STEP_LABELS.length - 1 && (
-                    <span className="text-slate-300 select-none">›</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <WorkflowStepper
+          steps={stepLabels}
+          currentStep={currentStep}
+          onSelectStep={goToStep}
+        />
       )}
 
       {/* Main Screen Views */}
       <main className="grow">
+        {/* Step 0: Landing / Overview */}
         {currentStep === 'landing' && (
           <LandingView
             onStartCase={handleStartFreshCase}
@@ -526,176 +104,160 @@ export default function Home() {
           />
         )}
 
+        {/* Step 1: Initial Context & First Report Outcome */}
         {currentStep === 'entry' && (
           <CaseEntryView
-            selectedOutcome={selectedOutcome}
-            providerName={provider}
-            referenceNumber={referenceNumber}
-            initialSummary={initialSummary}
-            onUpdateContext={(outc, prov, refNum, summ) => {
-              setSelectedOutcome(outc);
-              setProvider(prov);
-              setReferenceNumber(refNum);
-              setInitialSummary(summ);
-              if (prov && !caseTitle) {
-                setCaseTitle(`Matter with ${prov}`);
-              }
-            }}
+            selectedOutcome={caseManager.selectedOutcome}
+            providerName={caseManager.provider}
+            referenceNumber={caseManager.referenceNumber}
+            initialSummary={caseManager.initialSummary}
+            onUpdateContext={caseManager.updateContext}
             onContinue={() => goToStep('evidence')}
             onBack={() => goToStep('landing')}
-            isDemoMode={isDemoMode}
+            isDemoMode={caseManager.isDemoMode}
             onSwitchToReal={handleStartFreshCase}
             currentLanguage={currentLanguage}
           />
         )}
 
+        {/* Step 2: Evidence Files Ingestion & Redaction */}
         {currentStep === 'evidence' && (
           <EvidenceCollectionView
-            evidenceList={evidenceList}
-            onAddEvidence={handleAddEvidence}
-            onRemoveEvidence={handleRemoveEvidence}
-            onTogglePrivacy={handleToggleEvidencePrivacy}
-            onViewSource={(file) => setViewingSource(file)}
-            onLoadDemoFiles={() => {
-              handlePreloadDemo();
-            }}
+            evidenceList={caseManager.evidenceList}
+            onAddEvidence={caseManager.addEvidence}
+            onRemoveEvidence={caseManager.removeEvidence}
+            onTogglePrivacy={caseManager.toggleEvidencePrivacy}
+            onViewSource={(file) => caseManager.setViewingSource(file)}
+            onLoadDemoFiles={handlePreloadDemo}
             onContinue={() => goToStep('reconstruction')}
             onBack={() => goToStep('entry')}
             lowBandwidth={lowBandwidth}
-            isDemoMode={isDemoMode}
+            isDemoMode={caseManager.isDemoMode}
             currentLanguage={currentLanguage}
           />
         )}
 
+        {/* Step 3: Chronology Reconstruction */}
         {currentStep === 'reconstruction' && (
           <ReconstructionView
-            events={events}
-            evidenceList={evidenceList}
-            contradictions={contradictions}
-            missingInformation={missingInformation}
-            caseTitle={caseTitle}
-            provider={provider}
-            firstReportOutcome={selectedOutcome}
-            userDescription={initialSummary}
-            referenceNumber={referenceNumber}
-            onUpdateReconstruction={handleUpdateReconstruction}
-            onAddCustomEvent={handleAddCustomEvent}
-            onViewSource={(file) => setViewingSource(file)}
+            events={caseManager.events}
+            evidenceList={caseManager.evidenceList}
+            contradictions={caseManager.contradictions}
+            missingInformation={caseManager.missingInformation}
+            caseTitle={caseManager.caseTitle}
+            provider={caseManager.provider}
+            firstReportOutcome={caseManager.selectedOutcome}
+            userDescription={caseManager.initialSummary}
+            referenceNumber={caseManager.referenceNumber}
+            onUpdateReconstruction={caseManager.updateReconstruction}
+            onAddCustomEvent={caseManager.addCustomEvent}
+            onViewSource={(file) => caseManager.setViewingSource(file)}
             onContinue={() => goToStep('verification')}
             onBack={() => goToStep('evidence')}
-            isDemoMode={isDemoMode}
+            isDemoMode={caseManager.isDemoMode}
             currentLanguage={currentLanguage}
           />
         )}
 
+        {/* Step 4: Verification & Provenance Confirmation */}
         {currentStep === 'verification' && (
           <VerificationView
-            events={events}
-            evidenceList={evidenceList}
-            onUpdateEvent={handleUpdateEvent}
-            onDeleteEvent={handleDeleteEvent}
-            onAddCustomEvent={handleAddCustomEvent}
-            onVerifyAllSourceBacked={handleVerifyAllSourceBacked}
+            events={caseManager.events}
+            evidenceList={caseManager.evidenceList}
+            onUpdateEvent={caseManager.updateEvent}
+            onDeleteEvent={caseManager.deleteEvent}
+            onAddCustomEvent={caseManager.addCustomEvent}
+            onVerifyAllSourceBacked={caseManager.verifyAllSourceBacked}
             onContinue={() => goToStep('unresolved')}
             onBack={() => goToStep('reconstruction')}
-            isDemoMode={isDemoMode}
-            verificationReviewed={verificationReviewed}
-            onToggleVerificationReviewed={(val) => setVerificationReviewed(val)}
+            isDemoMode={caseManager.isDemoMode}
+            verificationReviewed={caseManager.verificationReviewed}
+            onToggleVerificationReviewed={caseManager.setVerificationReviewed}
             currentLanguage={currentLanguage}
           />
         )}
 
+        {/* Step 5: Unresolved Issue Definition */}
         {currentStep === 'unresolved' && (
           <UnresolvedIssueView
-            unresolved={unresolved}
-            onUpdateUnresolved={setUnresolved}
+            unresolved={caseManager.unresolved}
+            onUpdateUnresolved={caseManager.setUnresolved}
             onContinue={() => goToStep('pathway')}
             onBack={() => goToStep('verification')}
-            isDemoMode={isDemoMode}
+            isDemoMode={caseManager.isDemoMode}
             currentLanguage={currentLanguage}
           />
         )}
 
+        {/* Step 6: Escalation Pathway Guidance */}
         {currentStep === 'pathway' && (
           <PathwayGuidanceView
-            pathways={pathways}
-            selectedPathways={selectedPathways}
-            extractedFacts={extractedFacts}
-            safetyAlert={safetyAlert}
-            discoverySource={discoverySource}
-            caseInput={pathwayDiscoveryInput}
-            onUpdatePathways={handleUpdatePathways}
-            onTogglePathway={handleTogglePathway}
-            onUpdatePathwayStatus={handleUpdatePathwayStatus}
-            onAddCustomPathway={handleAddCustomPathway}
+            pathways={caseManager.pathways}
+            selectedPathways={caseManager.selectedPathways}
+            extractedFacts={caseManager.extractedFacts}
+            safetyAlert={caseManager.safetyAlert}
+            discoverySource={caseManager.discoverySource}
+            caseInput={caseManager.pathwayDiscoveryInput}
+            onUpdatePathways={caseManager.updatePathways}
+            onTogglePathway={caseManager.togglePathway}
+            onUpdatePathwayStatus={caseManager.updatePathwayStatus}
+            onAddCustomPathway={caseManager.addCustomPathway}
             onContinue={() => goToStep('privacy')}
             onSkip={() => goToStep('privacy')}
             onBack={() => goToStep('unresolved')}
-            isDemoMode={isDemoMode}
+            isDemoMode={caseManager.isDemoMode}
             currentLanguage={currentLanguage}
           />
         )}
 
+        {/* Step 7: Privacy Review & Redaction Finalization */}
         {currentStep === 'privacy' && (
           <PrivacyReviewView
-            evidenceList={evidenceList}
-            onUpdateEvidencePrivacy={handleUpdateEvidencePrivacy}
-            onRemoveEvidence={handleRemoveEvidence}
-            onViewSource={(file) => setViewingSource(file)}
+            evidenceList={caseManager.evidenceList}
+            onUpdateEvidencePrivacy={caseManager.updateEvidencePrivacy}
+            onRemoveEvidence={caseManager.removeEvidence}
+            onViewSource={(file) => caseManager.setViewingSource(file)}
             onApproveAndCreateBundle={() => goToStep('bundle')}
             onBack={() => goToStep('pathway')}
             currentLanguage={currentLanguage}
           />
         )}
 
+        {/* Step 8: Carry-Forward Structured Bundle */}
         {currentStep === 'bundle' && (
           <CarryForwardBundleView
-            caseData={currentCaseRecord}
+            caseData={caseManager.currentCaseRecord}
             onContinueToExport={() => goToStep('export')}
             onBack={() => goToStep('privacy')}
             currentLanguage={currentLanguage}
           />
         )}
 
+        {/* Step 9: Export & Hand-off Packages */}
         {currentStep === 'export' && (
           <ExportView
-            caseData={currentCaseRecord}
+            caseData={caseManager.currentCaseRecord}
             onBackToBundle={() => goToStep('bundle')}
             onStartAnotherCase={handleStartFreshCase}
             onViewCase={() => goToStep('bundle')}
-            onPreservePrivately={handlePreservePrivately}
+            onPreservePrivately={caseManager.preservePrivately}
             onGoToVerification={() => goToStep('verification')}
             currentLanguage={currentLanguage}
           />
         )}
       </main>
 
-      {/* Source Viewer Modal */}
-      {viewingSource && (
+      {/* Source Document Inspector Modal */}
+      {caseManager.viewingSource && (
         <SourceViewerModal
-          file={viewingSource}
-          onClose={() => setViewingSource(null)}
-          onTogglePrivacy={(id) => handleToggleEvidencePrivacy(id)}
+          file={caseManager.viewingSource}
+          onClose={() => caseManager.setViewingSource(null)}
+          onTogglePrivacy={caseManager.toggleEvidencePrivacy}
         />
       )}
 
-      {/* Accessible Civic Footer */}
-      <footer className="border-t border-[#D9DEE7] bg-white py-6 px-4 text-xs text-[#526071] print:hidden">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-[#172033]">CaseCarry</span>
-            <span>•</span>
-            <span>Don’t tell your story again.</span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>Citizen Controlled</span>
-            <span>•</span>
-            <span>Zero Automated Submissions</span>
-            <span>•</span>
-            <span>Recipient Neutral</span>
-          </div>
-        </div>
-      </footer>
+      {/* Civic Sovereignty Footer */}
+      <CivicFooter />
     </div>
   );
 }

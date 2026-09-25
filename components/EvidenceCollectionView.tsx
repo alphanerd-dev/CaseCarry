@@ -597,26 +597,36 @@ export function EvidenceCollectionView({
       {/* Navigation and "Continue with what I have" Footer */}
       <div className="mt-10 pt-6 border-t border-[#D9DEE7] flex flex-col sm:flex-row items-center justify-between gap-3">
         <button
+          id="evidence-back-btn"
+          type="button"
           onClick={onBack}
-          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
+          className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033] cursor-pointer"
         >
           Back
         </button>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto justify-end">
+          {evidenceList.length === 0 && onLoadDemoFiles && (
+            <button
+              id="evidence-preload-demo-btn"
+              type="button"
+              onClick={onLoadDemoFiles}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-semibold text-[#A15C00] bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors cursor-pointer"
+            >
+              Load realistic sample documents
+            </button>
+          )}
+
           <button
+            id="evidence-continue-btn"
+            type="button"
             onClick={onContinue}
-            disabled={evidenceList.length === 0}
-            className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              evidenceList.length > 0
-                ? 'bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs'
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-            }`}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs transition-all cursor-pointer"
           >
             <span>
               {evidenceList.length > 0
                 ? `Continue to Reconstruction (${evidenceList.length} items)`
-                : 'Add evidence to continue'}
+                : 'Continue to Reconstruction (Statement only)'}
             </span>
             <ArrowRight size={16} />
           </button>

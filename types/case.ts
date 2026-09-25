@@ -200,3 +200,27 @@ export interface CaseRecord {
     }>;
   };
 }
+
+export type AppStep =
+  | 'landing'
+  | 'entry'
+  | 'evidence'
+  | 'reconstruction'
+  | 'verification'
+  | 'unresolved'
+  | 'pathway'
+  | 'privacy'
+  | 'bundle'
+  | 'export';
+
+export const ORDERED_STEPS: AppStep[] = [
+  'entry',
+  'evidence',
+  'reconstruction',
+  'verification',
+  'unresolved',
+  'pathway',
+  'privacy',
+  'bundle',
+  'export',
+];

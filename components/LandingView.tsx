@@ -65,19 +65,30 @@ export function LandingView({
           {/* Actions */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
+              id="hero-carry-case-forward-btn"
+              type="button"
               onClick={onStartCase}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-base font-semibold rounded-xl shadow-sm transition-all focus:ring-4 focus:ring-[#2457C5]/20"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-base font-semibold rounded-xl shadow-sm transition-all focus:ring-4 focus:ring-[#2457C5]/20 cursor-pointer"
             >
               <span>{t.carryCaseForward}</span>
               <ArrowRight size={18} />
             </button>
 
             <button
+              id="hero-how-it-works-btn"
+              type="button"
               onClick={() => {
-                const el = document.getElementById('how-it-works-section');
-                el?.scrollIntoView({ behavior: 'smooth' });
+                try {
+                  const el = document.getElementById('how-it-works-section');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                } catch {
+                  try {
+                    const el = document.getElementById('how-it-works-section');
+                    el?.scrollIntoView();
+                  } catch {}
+                }
               }}
-              className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 bg-white hover:bg-slate-50 text-[#172033] text-base font-medium rounded-xl border border-[#D9DEE7] transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 bg-white hover:bg-slate-50 text-[#172033] text-base font-medium rounded-xl border border-[#D9DEE7] transition-colors cursor-pointer"
             >
               {t.howItWorks}
             </button>
@@ -92,8 +103,10 @@ export function LandingView({
           {/* Quick Demo Pre-load Pill */}
           <div className="pt-2">
             <button
+              id="hero-try-demo-btn"
+              type="button"
               onClick={handleLoadDemo}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#A15C00] rounded-lg text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[#A15C00] rounded-lg text-xs font-medium transition-colors cursor-pointer"
             >
               <Zap size={14} className="text-[#A15C00]" />
               <span>{t.tryDemoPill}</span>
@@ -111,43 +124,59 @@ export function LandingView({
           {/* Desktop flow: horizontal sequence */}
           <div className="hidden md:grid grid-cols-5 gap-2 items-center text-center">
             {/* 1. Original Report */}
-            <div className="p-3.5 rounded-xl border border-[#D9DEE7] bg-slate-50 flex flex-col items-center">
+            <button
+              type="button"
+              onClick={onStartCase}
+              className="p-3.5 rounded-xl border border-[#D9DEE7] bg-slate-50 hover:bg-slate-100/80 hover:border-slate-300 flex flex-col items-center transition-all cursor-pointer text-left w-full"
+            >
               <span className="text-xs font-semibold text-[#526071] mb-1">01. First Step</span>
               <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs mb-2">
                 1
               </div>
               <h4 className="text-sm font-bold text-[#172033]">Original Report</h4>
-              <p className="text-[11px] text-[#526071] mt-1">Submitted to provider or agency</p>
-            </div>
+              <p className="text-[11px] text-[#526071] mt-1 text-center">Submitted to provider or agency</p>
+            </button>
 
             <div className="text-center font-bold text-slate-400 text-lg">→</div>
 
             {/* 2. Response / Silence */}
-            <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 flex flex-col items-center">
+            <button
+              type="button"
+              onClick={onStartCase}
+              className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-100/60 hover:border-amber-300 flex flex-col items-center transition-all cursor-pointer text-left w-full"
+            >
               <span className="text-xs font-semibold text-[#A15C00] mb-1">02. The Breakdown</span>
               <div className="w-8 h-8 rounded-full bg-amber-200 text-[#A15C00] font-bold flex items-center justify-center text-xs mb-2">
                 2
               </div>
               <h4 className="text-sm font-bold text-[#172033]">Response or Closure</h4>
-              <p className="text-[11px] text-[#526071] mt-1">Closed without fixing the issue</p>
-            </div>
+              <p className="text-[11px] text-[#526071] mt-1 text-center">Closed without fixing the issue</p>
+            </button>
 
             <div className="text-center font-bold text-slate-400 text-lg">→</div>
 
             {/* 3. CaseCarry & Portable Record */}
-            <div className="p-3.5 rounded-xl border-2 border-[#2457C5] bg-blue-50/60 flex flex-col items-center">
+            <button
+              type="button"
+              onClick={onStartCase}
+              className="p-3.5 rounded-xl border-2 border-[#2457C5] bg-blue-50/60 hover:bg-blue-100/70 hover:border-[#1D46A0] flex flex-col items-center transition-all cursor-pointer text-left w-full shadow-xs"
+            >
               <span className="text-xs font-bold text-[#2457C5] mb-1">03. CaseCarry</span>
               <div className="w-8 h-8 rounded-full bg-[#2457C5] text-white font-bold flex items-center justify-center text-xs mb-2">
                 ✓
               </div>
               <h4 className="text-sm font-bold text-[#172033]">Carry-Forward Record</h4>
-              <p className="text-[11px] text-[#2457C5] font-medium mt-1">Verified & portable bundle</p>
-            </div>
+              <p className="text-[11px] text-[#2457C5] font-medium mt-1 text-center">Verified & portable bundle</p>
+            </button>
           </div>
 
           {/* Mobile flow: stacked cards */}
           <div className="md:hidden space-y-3">
-            <div className="p-3 bg-slate-50 border border-[#D9DEE7] rounded-xl flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onStartCase}
+              className="w-full text-left p-3 bg-slate-50 hover:bg-slate-100 border border-[#D9DEE7] rounded-xl flex items-center gap-3 transition-colors cursor-pointer"
+            >
               <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs shrink-0">
                 1
               </div>
@@ -155,13 +184,17 @@ export function LandingView({
                 <div className="text-xs font-bold text-[#172033]">Original Report</div>
                 <div className="text-[11px] text-[#526071]">Complaint or dispute originally submitted</div>
               </div>
-            </div>
+            </button>
 
             <div className="flex justify-center text-slate-400">
               <ArrowDown size={16} />
             </div>
 
-            <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onStartCase}
+              className="w-full text-left p-3 bg-amber-50/60 hover:bg-amber-100/70 border border-amber-200 rounded-xl flex items-center gap-3 transition-colors cursor-pointer"
+            >
               <div className="w-7 h-7 rounded-full bg-amber-200 text-[#A15C00] font-bold flex items-center justify-center text-xs shrink-0">
                 2
               </div>
@@ -169,13 +202,17 @@ export function LandingView({
                 <div className="text-xs font-bold text-[#172033]">Response received — Still unresolved</div>
                 <div className="text-[11px] text-[#526071]">Ignored, rejected, closed, or contradictory</div>
               </div>
-            </div>
+            </button>
 
             <div className="flex justify-center text-slate-400">
               <ArrowDown size={16} />
             </div>
 
-            <div className="p-3.5 bg-blue-50/80 border-2 border-[#2457C5] rounded-xl flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onStartCase}
+              className="w-full text-left p-3.5 bg-blue-50/80 hover:bg-blue-100/90 border-2 border-[#2457C5] rounded-xl flex items-center gap-3 transition-colors cursor-pointer"
+            >
               <div className="w-7 h-7 rounded-full bg-[#2457C5] text-white font-bold flex items-center justify-center text-xs shrink-0">
                 ✓
               </div>
@@ -183,7 +220,7 @@ export function LandingView({
                 <div className="text-xs font-bold text-[#172033]">CaseCarry Carry-Forward Record</div>
                 <div className="text-[11px] text-[#2457C5] font-medium">Reconstructed, verified chronology you control</div>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </section>
@@ -199,61 +236,85 @@ export function LandingView({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Card 1 */}
-          <div className="bg-white border border-[#D9DEE7] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:border-[#2457C5]/40 transition-colors">
+          <button
+            type="button"
+            onClick={onStartCase}
+            className="text-left bg-white border border-[#D9DEE7] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:border-[#2457C5] hover:shadow-md transition-all cursor-pointer group"
+          >
             <div>
-              <div className="w-10 h-10 rounded-lg bg-blue-50 text-[#2457C5] font-bold flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-lg bg-blue-50 group-hover:bg-[#2457C5] group-hover:text-white text-[#2457C5] font-bold flex items-center justify-center mb-4 transition-colors">
                 <FileCheck size={20} />
               </div>
-              <h3 className="text-lg font-bold text-[#172033] mb-2">Already reported the problem</h3>
+              <h3 className="text-lg font-bold text-[#172033] mb-2 group-hover:text-[#2457C5] transition-colors">Already reported the problem</h3>
               <p className="text-sm text-[#526071] leading-relaxed">
                 You have already submitted a complaint, request, report, or case somewhere through a utility, organization, or authority.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-[#526071]">
-              You have reference codes, letters, or tickets.
+            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-[#2457C5] font-semibold flex items-center justify-between">
+              <span>Start case with reference code</span>
+              <ArrowRight size={14} />
             </div>
-          </div>
+          </button>
 
           {/* Card 2 */}
-          <div className="bg-white border border-[#D9DEE7] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:border-[#2457C5]/40 transition-colors">
+          <button
+            type="button"
+            onClick={onStartCase}
+            className="text-left bg-white border border-[#D9DEE7] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:border-[#A15C00] hover:shadow-md transition-all cursor-pointer group"
+          >
             <div>
-              <div className="w-10 h-10 rounded-lg bg-amber-50 text-[#A15C00] font-bold flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-lg bg-amber-50 group-hover:bg-[#A15C00] group-hover:text-white text-[#A15C00] font-bold flex items-center justify-center mb-4 transition-colors">
                 <Clock size={20} />
               </div>
-              <h3 className="text-lg font-bold text-[#172033] mb-2">It still isn&apos;t resolved</h3>
+              <h3 className="text-lg font-bold text-[#172033] mb-2 group-hover:text-[#A15C00] transition-colors">It still isn&apos;t resolved</h3>
               <p className="text-sm text-[#526071] leading-relaxed">
                 You received no response, an arbitrary rejection, a transfer, a premature closure, or an answer that did not solve the underlying issue.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-[#526071]">
-              The underlying harm or billing error persists.
+            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-[#A15C00] font-semibold flex items-center justify-between">
+              <span>Carry unresolved issue forward</span>
+              <ArrowRight size={14} />
             </div>
-          </div>
+          </button>
 
           {/* Card 3 */}
-          <div className="bg-white border border-[#D9DEE7] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:border-[#2457C5]/40 transition-colors">
+          <button
+            type="button"
+            onClick={onStartCase}
+            className="text-left bg-white border border-[#D9DEE7] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:border-[#18794E] hover:shadow-md transition-all cursor-pointer group"
+          >
             <div>
-              <div className="w-10 h-10 rounded-lg bg-emerald-50 text-[#18794E] font-bold flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-lg bg-emerald-50 group-hover:bg-[#18794E] group-hover:text-white text-[#18794E] font-bold flex items-center justify-center mb-4 transition-colors">
                 <ArrowRight size={20} />
               </div>
-              <h3 className="text-lg font-bold text-[#172033] mb-2">You need to continue</h3>
+              <h3 className="text-lg font-bold text-[#172033] mb-2 group-hover:text-[#18794E] transition-colors">You need to continue</h3>
               <p className="text-sm text-[#526071] leading-relaxed">
                 You need to explain what happened to another organization, regulator, advocate, or caseworker without starting from zero.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-[#526071]">
-              Carry your verified facts in one portable bundle.
+            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-[#18794E] font-semibold flex items-center justify-between">
+              <span>Create portable evidence bundle</span>
+              <ArrowRight size={14} />
             </div>
-          </div>
+          </button>
         </div>
 
         <div className="text-center mt-8">
           <button
+            id="mid-how-it-works-btn"
+            type="button"
             onClick={() => {
-              const el = document.getElementById('how-it-works-section');
-              el?.scrollIntoView({ behavior: 'smooth' });
+              try {
+                const el = document.getElementById('how-it-works-section');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              } catch {
+                try {
+                  const el = document.getElementById('how-it-works-section');
+                  el?.scrollIntoView();
+                } catch {}
+              }
             }}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2457C5] hover:text-[#1D46A0]"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2457C5] hover:text-[#1D46A0] cursor-pointer"
           >
             <span>See how it works</span>
             <ArrowRight size={14} />
@@ -522,19 +583,30 @@ export function LandingView({
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
+              id="cta-carry-case-forward-btn"
+              type="button"
               onClick={onStartCase}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-base font-semibold rounded-xl shadow-xs transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-base font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
             >
               <span>Carry my case forward</span>
               <ArrowRight size={18} />
             </button>
 
             <button
+              id="cta-privacy-learn-more-btn"
+              type="button"
               onClick={() => {
-                const el = document.getElementById('privacy-section');
-                el?.scrollIntoView({ behavior: 'smooth' });
+                try {
+                  const el = document.getElementById('privacy-section');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                } catch {
+                  try {
+                    const el = document.getElementById('privacy-section');
+                    el?.scrollIntoView();
+                  } catch {}
+                }
               }}
-              className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3.5 text-sm font-medium text-[#526071] hover:text-[#172033] rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3.5 text-sm font-medium text-[#526071] hover:text-[#172033] rounded-xl border border-[#D9DEE7] bg-white hover:bg-slate-50 transition-colors cursor-pointer"
             >
               Learn how CaseCarry protects your information
             </button>

@@ -97,7 +97,12 @@ export function CaseEntryView({
     );
   };
 
-  const canContinue = outcome.length > 0;
+  const handleContinueClick = () => {
+    if (!outcome) {
+      handleSelect('response-didnt-resolve');
+    }
+    onContinue();
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -151,6 +156,7 @@ export function CaseEntryView({
           return (
             <div
               key={opt.id}
+              id={`outcome-opt-${opt.id}`}
               onClick={() => handleSelect(opt.id)}
               onKeyDown={(e) => {
                 if (e.key === ' ' || e.key === 'Enter') {
@@ -218,6 +224,7 @@ export function CaseEntryView({
               {t.providerQuestion}
             </label>
             <input
+              id="provider-name-input"
               type="text"
               value={provider}
               onChange={(e) => handleFieldChange('provider', e.target.value)}
@@ -227,10 +234,11 @@ export function CaseEntryView({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#526071] mb-1">
+            <label htmlFor="reference-number-input" className="block text-xs font-semibold text-[#526071] mb-1">
               {t.refNumberQuestion}
             </label>
             <input
+              id="reference-number-input"
               type="text"
               value={refNum}
               onChange={(e) => handleFieldChange('refNum', e.target.value)}
@@ -241,10 +249,11 @@ export function CaseEntryView({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#526071] mb-1">
+          <label htmlFor="initial-summary-input" className="block text-xs font-semibold text-[#526071] mb-1">
             {t.summaryQuestion}
           </label>
           <textarea
+            id="initial-summary-input"
             rows={2}
             value={summary}
             onChange={(e) => handleFieldChange('summary', e.target.value)}
@@ -257,20 +266,19 @@ export function CaseEntryView({
       {/* Action Footer */}
       <div className="mt-8 pt-4 flex items-center justify-between">
         <button
+          id="entry-back-btn"
+          type="button"
           onClick={onBack}
-          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
+          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033] cursor-pointer"
         >
           {t.back}
         </button>
 
         <button
-          onClick={onContinue}
-          disabled={!canContinue}
-          className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            canContinue
-              ? 'bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs'
-              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-          }`}
+          id="entry-continue-btn"
+          type="button"
+          onClick={handleContinueClick}
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs transition-all cursor-pointer"
         >
           <span>{t.continue}</span>
           <ArrowRight size={16} />

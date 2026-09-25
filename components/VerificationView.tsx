@@ -233,6 +233,26 @@ export function VerificationView({
 
       {/* Events List for Verification */}
       <div className="space-y-4">
+        {events.length === 0 && (
+          <div className="p-8 text-center bg-white border border-[#D9DEE7] rounded-2xl shadow-xs space-y-3">
+            <p className="text-sm font-semibold text-[#172033]">No chronological events to verify yet.</p>
+            <p className="text-xs text-[#526071]">
+              You can add an event manually or proceed directly to defining the unresolved issue.
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                id="verification-add-empty-btn"
+                onClick={() => setAddModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                <PlusCircle size={14} />
+                <span>Add Missing Event Manually</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {events.map((ev, idx) => {
           const isEditing = editingEventId === ev.id;
 
@@ -470,15 +490,19 @@ export function VerificationView({
       {/* Navigation Footer */}
       <div className="mt-8 pt-6 border-t border-[#D9DEE7] flex items-center justify-between">
         <button
+          id="verification-back-btn"
+          type="button"
           onClick={onBack}
-          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
+          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033] cursor-pointer"
         >
           {t.back}
         </button>
 
         <button
+          id="verification-continue-btn"
+          type="button"
           onClick={onContinue}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-sm font-semibold rounded-xl shadow-xs transition-all"
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-sm font-semibold rounded-xl shadow-xs transition-all cursor-pointer"
         >
           <span>{t.continue}</span>
           <ArrowRight size={16} />

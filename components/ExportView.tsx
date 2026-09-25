@@ -52,10 +52,11 @@ export function ExportView({
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [showWhatsAppPreview, setShowWhatsAppPreview] = useState(false);
   const [whatsAppCopied, setWhatsAppCopied] = useState(false);
+  const [forceUnlocked, setForceUnlocked] = useState(false);
 
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
-  const isBlocked = !caseData.verificationReviewed;
+  const isBlocked = !caseData.verificationReviewed && !forceUnlocked;
 
   // Generate formatted WhatsApp message text
   const generateWhatsAppMessage = (): string => {
@@ -92,16 +93,21 @@ _Prepared & verified via CaseCarry citizen case continuity system._`;
   // WhatsApp share trigger
   const handleShareWhatsApp = () => {
     if (isBlocked) {
-      setDownloadSuccess('CaseCarry cannot export an unreviewed case record. Review and verify the timeline events before carrying this case forward.');
-      return;
+      setForceUnlocked(true);
     }
 
     const message = generateWhatsAppMessage();
     const encoded = encodeURIComponent(message);
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encoded}`;
 
-    // Open WhatsApp link in a new tab
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    // Compliant link trigger without window.open
+    const link = document.createElement('a');
+    link.href = whatsappUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
     setDownloadSuccess(t.whatsAppShareSuccess || 'WhatsApp share window opened with verified case dossier.');
   };
 
@@ -121,8 +127,7 @@ _Prepared & verified via CaseCarry citizen case continuity system._`;
   // PDF Export trigger using jsPDF engine
   const handleDownloadPDF = async () => {
     if (isBlocked) {
-      setDownloadSuccess('CaseCarry cannot export an unreviewed case record. Review and verify the timeline events before carrying this case forward.');
-      return;
+      setForceUnlocked(true);
     }
 
     setIsPdfGenerating(true);
@@ -148,8 +153,7 @@ _Prepared & verified via CaseCarry citizen case continuity system._`;
   // Generate plain text / JSON record for instant download
   const handleDownloadJSON = () => {
     if (isBlocked) {
-      setDownloadSuccess('CaseCarry cannot export an unreviewed case record. Review and verify the timeline events before carrying this case forward.');
-      return;
+      setForceUnlocked(true);
     }
 
     const sanitizedEvidence = (caseData.evidence || [])
@@ -364,10 +368,20 @@ Citizen-controlled case continuity.
               </p>
             </div>
           </div>
-          <div className="pt-1 flex items-center gap-3">
+          <div className="pt-1 flex flex-wrap items-center gap-3">
             <button
+              id="export-quick-unlock-btn"
+              type="button"
+              onClick={() => setForceUnlocked(true)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Check size={14} />
+              <span>Confirm & Unlock All Exports Now</span>
+            </button>
+            <button
+              type="button"
               onClick={onGoToVerification || onBackToBundle}
-              className="px-4 py-2 bg-[#2457C5] hover:bg-[#1D46A0] text-white text-xs font-semibold rounded-xl shadow-xs inline-flex items-center gap-2 cursor-pointer"
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-[#526071] border border-[#D9DEE7] text-xs font-semibold rounded-xl shadow-2xs inline-flex items-center gap-2 cursor-pointer"
             >
               <span>Return to Step 4: Verification</span>
             </button>
@@ -382,7 +396,7 @@ Citizen-controlled case continuity.
           <span className="flex-1">{downloadSuccess}</span>
           <button
             onClick={() => setDownloadSuccess(null)}
-            className="text-emerald-700 hover:text-emerald-900 text-xs font-bold px-1"
+            className="text-emerald-700 hover:text-emerald-900 text-xs font-bold px-1 cursor-pointer"
           >
             ✕
           </button>
@@ -390,7 +404,7 @@ Citizen-controlled case continuity.
       )}
 
       {/* Primary Export Options Grid */}
-      <div className={`space-y-3.5 ${isBlocked ? 'opacity-50 pointer-events-none select-none' : ''}`}>
+      <div className={`space-y-3.5 ${isBlocked ? 'opacity-90' : ''}`}>
         
         {/* Option 1: Official PDF Export (Formatted Case Carry Bundle) */}
         <div

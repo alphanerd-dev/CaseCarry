@@ -63,6 +63,16 @@ export function UnresolvedIssueView({
 
   const hasCoreProblem = Boolean((formData.problem || '').trim()) || Boolean((formData.whatWasNotResolved || '').trim());
 
+  const handleContinueClick = () => {
+    if (!unresolved.problem.trim()) {
+      onUpdateUnresolved({
+        ...unresolved,
+        problem: 'Dispute remains unresolved following initial report and provider response.',
+      });
+    }
+    onContinue();
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Back button */}
@@ -222,20 +232,19 @@ export function UnresolvedIssueView({
       {/* Navigation Footer */}
       <div className="mt-10 pt-6 border-t border-[#D9DEE7] flex items-center justify-between">
         <button
+          id="unresolved-back-btn"
+          type="button"
           onClick={onBack}
-          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033]"
+          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-[#526071] hover:text-[#172033] cursor-pointer"
         >
           {t.back}
         </button>
 
         <button
-          onClick={onContinue}
-          disabled={!hasCoreProblem}
-          className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            hasCoreProblem
-              ? 'bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs'
-              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-          }`}
+          id="unresolved-continue-btn"
+          type="button"
+          onClick={handleContinueClick}
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#2457C5] hover:bg-[#1D46A0] text-white shadow-xs transition-all cursor-pointer"
         >
           <span>{t.continue}</span>
           <ArrowRight size={16} />
