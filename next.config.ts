@@ -6,6 +6,7 @@ delete process.env.EDITOR;
 delete process.env.VISUAL;
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   devIndicators: false,
   typescript: {
