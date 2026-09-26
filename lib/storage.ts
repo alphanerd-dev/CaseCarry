@@ -29,6 +29,14 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
+function waitForTransaction(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaction aborted'));
+  });
+}
+
 export interface StoredDraft {
   key: string;
   caseRecord: CaseRecord;
@@ -61,6 +69,7 @@ export async function saveDraftLocally(
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
+    await waitForTransaction(tx);
     return { success: true, timestamp };
   } catch (err) {
     // Fallback to localStorage for small payloads (excluding heavy dataUrls if needed)
@@ -148,6 +157,7 @@ export async function saveCaseToLocalList(caseRecord: CaseRecord): Promise<void>
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
+    await waitForTransaction(tx);
   } catch {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -199,7 +209,12 @@ export async function deleteLocalCase(id: string): Promise<void> {
     const db = await openDB();
     const tx = db.transaction(STORE_CASES, 'readwrite');
     const store = tx.objectStore(STORE_CASES);
-    store.delete(id);
+    await new Promise<void>((resolve, reject) => {
+      const req = store.delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+    await waitForTransaction(tx);
   } catch {
     // Fallback
   }
