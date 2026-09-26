@@ -215,7 +215,12 @@ export function useCaseManager({ currentStep }: UseCaseManagerOptions) {
     setContradictions([]);
     setMissingInformation([]);
     setVerificationReviewed(false);
+    setExtractedFacts([]);
+    setSafetyAlert(undefined);
+    setDiscoverySource('verified_cache');
+    setViewingSource(null);
     setCaseCreatedAt(new Date().toISOString().slice(0, 10));
+    setCaseUpdatedAt(new Date().toISOString().slice(0, 10));
     setUnresolved(INITIAL_UNRESOLVED_STATE);
     setPathways(SAMPLE_PATHWAYS);
     setSelectedPathways([]);
@@ -229,6 +234,7 @@ export function useCaseManager({ currentStep }: UseCaseManagerOptions) {
     setCitizenName(savedRecord.citizenName);
     setProvider(savedRecord.provider);
     setReferenceNumber(savedRecord.accountReference || '');
+    setInitialSummary(savedRecord.unresolved?.whatHappened || '');
     setSelectedOutcome(savedRecord.firstReportOutcome || '');
     setEvidenceList(savedRecord.evidence || []);
     setEvents(savedRecord.events || []);
@@ -236,9 +242,14 @@ export function useCaseManager({ currentStep }: UseCaseManagerOptions) {
     setMissingInformation(savedRecord.missingInformation || []);
     setVerificationReviewed(Boolean(savedRecord.verificationReviewed));
     setCaseCreatedAt(savedRecord.createdAt || new Date().toISOString().slice(0, 10));
-    setUnresolved(savedRecord.unresolved);
+    setCaseUpdatedAt(savedRecord.updatedAt || savedRecord.createdAt || new Date().toISOString().slice(0, 10));
+    setUnresolved(savedRecord.unresolved || INITIAL_UNRESOLVED_STATE);
     setPathways(savedRecord.pathways || SAMPLE_PATHWAYS);
     setSelectedPathways(savedRecord.selectedPathways || []);
+    setExtractedFacts(savedRecord.extractedFacts || []);
+    setSafetyAlert(savedRecord.safetyAlert);
+    setDiscoverySource(savedRecord.pathwayDiscoverySource || 'verified_cache');
+    setViewingSource(null);
   }, []);
 
   // Update context entries

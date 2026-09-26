@@ -64,11 +64,13 @@ export function UnresolvedIssueView({
   const hasCoreProblem = Boolean((formData.problem || '').trim()) || Boolean((formData.whatWasNotResolved || '').trim());
 
   const handleContinueClick = () => {
-    if (!unresolved.problem.trim()) {
-      onUpdateUnresolved({
-        ...unresolved,
+    if (!hasCoreProblem) {
+      const updated = {
+        ...formData,
         problem: 'Dispute remains unresolved following initial report and provider response.',
-      });
+      };
+      setFormData(updated);
+      onUpdateUnresolved(updated);
     }
     onContinue();
   };

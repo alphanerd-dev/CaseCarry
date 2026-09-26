@@ -93,7 +93,8 @@ _Prepared & verified via CaseCarry citizen case continuity system._`;
   // WhatsApp share trigger
   const handleShareWhatsApp = () => {
     if (isBlocked) {
-      setForceUnlocked(true);
+      setDownloadSuccess('Review and verify the timeline events before sharing this case record.');
+      return;
     }
 
     const message = generateWhatsAppMessage();
@@ -127,7 +128,8 @@ _Prepared & verified via CaseCarry citizen case continuity system._`;
   // PDF Export trigger using jsPDF engine
   const handleDownloadPDF = async () => {
     if (isBlocked) {
-      setForceUnlocked(true);
+      setDownloadSuccess('Review and verify the timeline events before exporting this case record.');
+      return;
     }
 
     setIsPdfGenerating(true);
@@ -153,7 +155,8 @@ _Prepared & verified via CaseCarry citizen case continuity system._`;
   // Generate plain text / JSON record for instant download
   const handleDownloadJSON = () => {
     if (isBlocked) {
-      setForceUnlocked(true);
+      setDownloadSuccess('Review and verify the timeline events before exporting this case record.');
+      return;
     }
 
     const sanitizedEvidence = (caseData.evidence || [])
@@ -677,4 +680,3 @@ Citizen-controlled case continuity.
     </div>
   );
 }
-
